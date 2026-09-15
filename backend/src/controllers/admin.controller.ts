@@ -3,6 +3,8 @@ import type { AuthenticatedRequest } from '../middlewares/auth.middleware.js';
 import { generateStaticBranchQRCode } from '../services/admin.service.js';
 import { createCounter, getAllCounters, toggleCounterStatus, forceUnbindCounterShift, createPriorityTicket, overrideTicketStatus,} from '../services/admin.service.js';
 import { createUser, getAllUsers, resetUserPassword } from '../services/admin.service.js';
+import { TicketStatus, UserRole } from '@qflow/database/client';
+import {getAllTickets} from '../services/admin.service.js';
 
 /**
  * POST /api/admin/qr-code
@@ -121,9 +123,16 @@ export async function handleCreateUser(req: AuthenticatedRequest, res: Response)
 }
 
 // GET /api/admin/users
-export async function handleGetAllUsers(_req: AuthenticatedRequest, res: Response): Promise<void> {
+export async function handleGetAllUsers(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
-    const users = await getAllUsers();
+    const { role } = req.query;
+    
+    // Validate role filter if provided
+    const roleFilter = role && Object.values(UserRole).includes(role as UserRole)
+      ? (role as UserRole)
+      : undefined;
+
+    const users = await getAllUsers(roleFilter);
     res.status(200).json({ users });
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Failed to retrieve users.' });
@@ -228,5 +237,24 @@ export async function handleOverrideTicketStatus(req: AuthenticatedRequest, res:
     });
   } catch (error: any) {
     res.status(400).json({ error: error.message || 'Failed to override ticket status.' });
+  }
+}
+
+
+// GET /api/v1/admin/tickets
+export async function handleGetAllTickets(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const { status, search, page, limit } = req.query;
+
+    const result = await getAllTickets({
+      status: status ? (status as TicketStatus) : undefined,
+      search: search ? String(search) : undefined,
+      page: page ? Number(page) : 1,
+      limit: limit ? Number(limit) : 50,
+    });
+
+    res.status(200).json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to retrieve tickets.' });
   }
 }

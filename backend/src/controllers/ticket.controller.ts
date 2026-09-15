@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { createTicket, callNextTicket, skipTicket } from '../services/ticket.service.js';
+import { createTicket } from '../services/ticket.service.js';
 
 const VALID_CHANNELS = ['WHATSAPP', 'SMS', 'NONE'] as const;
 type NotificationChannel = (typeof VALID_CHANNELS)[number];
