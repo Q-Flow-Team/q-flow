@@ -18,8 +18,10 @@ async function logNotification(ticketId: string, channel: any, trigger: Notifica
 }
 
 /**
- * 2. Join Queue (Customer check-in)
+ * 2. Ticket Service Functions
  */
+
+//----------------Join Queue (Customer check-in)--------------
 export async function createTicket(data: {
   customerName: string;
   phoneNumber: string;
@@ -63,6 +65,81 @@ export async function createTicket(data: {
 
   return ticket;
 }
+
+
+//-------------Get Live Ticket Status for Customer View--------------
+
+export async function getTicketStatus(ticketId: string) {
+  const ticket = await prisma.ticket.findUnique({
+    where: { id: ticketId },
+    select: {
+      id: true,
+      ticketNumber: true,
+      customerName: true,
+      status: true,
+      currentPosition: true,
+      estimatedWaitTimeMinutes: true,
+      skipCount: true,
+      counter: {
+        select: {
+          counterNumber: true,
+          counterName: true,
+        },
+      },
+    },
+  });
+
+  if (!ticket) {
+    throw new Error('Ticket not found.');
+  }
+
+  return ticket;
+}
+
+//-------------Customer Self-Cancellation--------------
+export async function cancelCustomerTicket(ticketId: string) {
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+
+  if (!ticket) {
+    throw new Error('Ticket not found.');
+  }
+
+  if (ticket.status !== TicketStatus.WAITING && ticket.status !== TicketStatus.CALLED) {
+    throw new Error('Only WAITING or CALLED tickets can be cancelled.');
+  }
+
+  const cancelledTicket = await prisma.ticket.update({
+    where: { id: ticketId },
+    data: {
+      status: TicketStatus.CANCELLED,
+      cancelledAt: new Date(),
+      currentPosition: 0,
+    },
+  });
+
+  // Shift waiting positions for everyone behind this ticket
+  if (ticket.status === TicketStatus.WAITING && ticket.currentPosition > 0) {
+    await prisma.ticket.updateMany({
+      where: {
+        status: TicketStatus.WAITING,
+        currentPosition: { gt: ticket.currentPosition },
+      },
+      data: { currentPosition: { decrement: 1 } },
+    });
+  }
+
+  // 📡 Real-time broadcast
+  broadcastQueueEvent(SOCKET_EVENTS.QUEUE_UPDATED, {
+    ticketId: cancelledTicket.id,
+    ticketNumber: cancelledTicket.ticketNumber,
+    status: cancelledTicket.status,
+  });
+
+  return cancelledTicket;
+}
+
+
+
 
 /**
  * 3. Staff Actions on tickets
