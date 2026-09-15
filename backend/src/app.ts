@@ -43,10 +43,10 @@ app.use(express.json());
 app.use('/api', apiLimiter);
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/tickets', ticketRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/staff', staffRoutes);
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/tickets', ticketRoutes);
+app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/staff', staffRoutes);
 
 app.get('/health', async (_req: Request, res: Response) => {
   try {
