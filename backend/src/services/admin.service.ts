@@ -389,3 +389,141 @@ export async function getAllTickets(filters: {
     },
   };
 }
+
+
+
+/**
+ * Admin Analytics & Operational Metrics Engine
+ */
+
+
+//-----------Queue System Overview & Wait Time Metrics----------
+export async function getSystemAnalytics() {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  // Total tickets issued today
+  const totalTicketsToday = await prisma.ticket.count({
+    where: { joinedAt: { gte: todayStart } },
+  });
+
+  // Ticket status breakdown today
+  const statusCounts = await prisma.ticket.groupBy({
+    by: ['status'],
+    where: { joinedAt: { gte: todayStart } },
+    _count: { _all: true },
+  });
+
+  // Map status counts to key-value format
+  const statusSummary: Record<string, number> = {
+    WAITING: 0,
+    CALLED: 0,
+    IN_SERVICE: 0,
+    SERVED: 0,
+    CANCELLED: 0,
+    AUTO_CANCELLED: 0,
+  };
+  statusCounts.forEach((sc) => {
+    statusSummary[sc.status] = sc._count._all;
+  });
+
+  // Fetch served tickets today to calculate average wait & service duration
+  const servedTickets = await prisma.ticket.findMany({
+    where: {
+      joinedAt: { gte: todayStart },
+      status: TicketStatus.SERVED,
+      servicedAt: { not: null },
+      completedAt: { not: null },
+    },
+    select: {
+      joinedAt: true,
+      servicedAt: true,
+      completedAt: true,
+    },
+  });
+
+  let totalWaitTimeMs = 0;
+  let totalServiceTimeMs = 0;
+
+  servedTickets.forEach((t) => {
+    if (t.servicedAt) {
+      totalWaitTimeMs += t.servicedAt.getTime() - t.joinedAt.getTime();
+    }
+    if (t.servicedAt && t.completedAt) {
+      totalServiceTimeMs += t.completedAt.getTime() - t.servicedAt.getTime();
+    }
+  });
+
+  const servedCount = servedTickets.length;
+  const avgWaitTimeMinutes = servedCount > 0 ? Math.round(totalWaitTimeMs / servedCount / 60000) : null;
+  const avgServiceTimeMinutes = servedCount > 0 ? Math.round(totalServiceTimeMs / servedCount / 60000) : null;
+
+  return {
+    date: todayStart.toISOString().split('T')[0],
+    totalTicketsToday,
+    avgWaitTimeMinutes,
+    avgServiceTimeMinutes,
+    statusBreakdown: statusSummary,
+  };
+}
+
+
+
+//-----------Staff Efficiency & Counter Performance Metrics----------
+export async function getStaffEfficiencyMetrics() {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const staffMembers = await prisma.user.findMany({
+    where: { role: 'COUNTER_STAFF' },
+    select: {
+      id: true,
+      employeeId: true,
+      fullName: true,
+      activeCounter: {
+        select: {
+          counterNumber: true,
+          counterName: true,
+        },
+      },
+    },
+  });
+
+  const efficiencyData = await Promise.all(
+    staffMembers.map(async (staff) => {
+      const ticketsServed = await prisma.ticket.findMany({
+        where: {
+          servicedByStaffId: staff.id,
+          status: TicketStatus.SERVED,
+          servicedAt: { gte: todayStart },
+          completedAt: { not: null },
+        },
+        select: {
+          servicedAt: true,
+          completedAt: true,
+        },
+      });
+
+      let totalDurationMs = 0;
+      ticketsServed.forEach((t) => {
+        if (t.servicedAt && t.completedAt) {
+          totalDurationMs += t.completedAt.getTime() - t.servicedAt.getTime();
+        }
+      });
+
+      const count = ticketsServed.length;
+      const avgHandlingTimeMinutes = count > 0 ? Math.round(totalDurationMs / count / 60000) : null;
+
+      return {
+        staffId: staff.id,
+        employeeId: staff.employeeId,
+        fullName: staff.fullName,
+        activeCounter: staff.activeCounter ? `Register ${staff.activeCounter.counterNumber}` : 'Unbound',
+        totalTicketsServedToday: count,
+        avgHandlingTimeMinutes,
+      };
+    })
+  );
+
+  return efficiencyData;
+}

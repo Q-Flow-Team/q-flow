@@ -4,9 +4,13 @@ import { requireAdmin } from '../middlewares/admin.middleware.js';
 import { handleGenerateQRCode, handleCreateCounter, handleGetAllCounters, handleToggleCounter, handleForceUnbind,
     handleCreateUser, handleGetAllUsers, handleResetPassword, 
     handleCreatePriorityTicket,
-    handleOverrideTicketStatus} from '../controllers/admin.controller.js';
+    handleOverrideTicketStatus,
+    handleGetAllTickets,
+    handleGetSystemAnalytics,
+    handleGetStaffEfficiency} from '../controllers/admin.controller.js';
 
 const router = Router();
+
 
 // Protect all admin routes with JWT auth & Admin role checks
 router.use(authenticateToken, requireAdmin);
@@ -25,8 +29,15 @@ router.post('/users', handleCreateUser);
 router.get('/users', handleGetAllUsers);
 router.post('/users/:id/reset-password', handleResetPassword);
 
+// Ticket Management Endpoints
+router.get('/tickets', handleGetAllTickets);
+
 // Queue Overrides & Priority Insertion
 router.post('/tickets/priority', handleCreatePriorityTicket);
 router.patch('/tickets/:id/override', handleOverrideTicketStatus);
+
+// Analytics & Metrics Endpoints
+router.get('/analytics/overview', handleGetSystemAnalytics);
+router.get('/analytics/staff-efficiency', handleGetStaffEfficiency);
 
 export default router;

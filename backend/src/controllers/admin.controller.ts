@@ -1,6 +1,6 @@
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../middlewares/auth.middleware.js';
-import { generateStaticBranchQRCode } from '../services/admin.service.js';
+import { generateStaticBranchQRCode, getStaffEfficiencyMetrics, getSystemAnalytics } from '../services/admin.service.js';
 import { createCounter, getAllCounters, toggleCounterStatus, forceUnbindCounterShift, createPriorityTicket, overrideTicketStatus,} from '../services/admin.service.js';
 import { createUser, getAllUsers, resetUserPassword } from '../services/admin.service.js';
 import { TicketStatus, UserRole } from '@qflow/database/client';
@@ -256,5 +256,26 @@ export async function handleGetAllTickets(req: AuthenticatedRequest, res: Respon
     res.status(200).json(result);
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Failed to retrieve tickets.' });
+  }
+}
+
+
+// GET /api/admin/analytics/overview
+export async function handleGetSystemAnalytics(_req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const analytics = await getSystemAnalytics();
+    res.status(200).json({ analytics });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to calculate system analytics.' });
+  }
+}
+
+// GET /api/admin/analytics/staff-efficiency
+export async function handleGetStaffEfficiency(_req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const metrics = await getStaffEfficiencyMetrics();
+    res.status(200).json({ staffEfficiency: metrics });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to retrieve staff efficiency metrics.' });
   }
 }
