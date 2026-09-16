@@ -7,11 +7,12 @@ import {
   handleCompleteService,
   handleSkipTicket,
 } from '../controllers/staff.controller.js';
+import { requireCounterStaff } from '../middlewares/staff.middleware.js';
 
 const router = Router();
 
 // Protect all counter staff routes with JWT Auth
-router.use(authenticateToken);
+router.use(authenticateToken, requireCounterStaff);
 
 router.get('/shift-overview', handleGetShiftOverview);
 router.post('/call-next', handleCallNext);
