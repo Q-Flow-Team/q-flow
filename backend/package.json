@@ -1,5 +1,5 @@
 {
-  "name": "qflow-backend",
+  "name": "@qflow/backend",
   "version": "1.0.0",
   "type": "module",
   "main": "dist/app.js",
@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
-    "@qflow/database": "*",
+    "@qflow/database": "file:../database",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
