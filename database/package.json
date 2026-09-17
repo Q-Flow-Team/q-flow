@@ -21,8 +21,9 @@
   },
   "exports": {
     "./client": {
-      "types": "./dist/generated/prisma/client.d.ts",
-      "import": "./dist/generated/prisma/client.js"
+      "types": "./generated/prisma/index.d.ts",
+      "import": "./generated/prisma/index.js",
+      "default": "./generated/prisma/index.js"
     }
   }
 }
