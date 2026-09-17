@@ -1,5 +1,7 @@
 # Dependencies
 node_modules/
+node_modules
+.pnpm-store/
 
 # Environment variables
 .env
@@ -15,23 +17,66 @@ node_modules/
 dist/
 build/
 
-# Logs
+# Logs & Debugging
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
+yarn-error.log*
 pnpm-debug.log*
 
 # OS files
 .DS_Store
 Thumbs.db
 
-# IDE / editor
-.vscode/
+# IDE / Editor Settings
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
 .idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
 
-# Coverage
+# Test Coverage & Testing Reports
 coverage/
+.nyc_output/
 
 # Temporary files
 tmp/
 temp/
+
+# Database exports and backups
+*.sql
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.db
+*.db-journal
+*.dump
+
+# Database & Prisma Local Files
+prisma/dev.db
+prisma/dev.db-journal
+
+# Local environment database files
+/database/*.db
+/database/*.sqlite
+/database/*.sqlite3
+
+# Database logs
+*.log
+
+# Docker database volumes & local storage
+/database/data/
+/database/pgdata/
+/database/mysql/
+
+# Keep schema / migration scripts, but ignore temporary seed outputs
+/database/seeds/*.tmp
+
+mnotify_api_key_Q-Flow.txt

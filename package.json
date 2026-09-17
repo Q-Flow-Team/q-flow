@@ -1,0 +1,5 @@
+{
+  "name": "qflow",
+  "private": true,
+  "workspaces": ["backend", "database"]
+}
