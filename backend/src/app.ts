@@ -4,6 +4,8 @@ import type { Request, Response } from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './config/swagger.js';
 import helmet from 'helmet';
 import { prisma } from './config/db.js';
 import ticketRoutes from './routes/ticket.routes.js';
@@ -35,6 +37,15 @@ const io = new Server(server, {
     origin: allowedOrigins,
     credentials: true,
   },
+});
+
+// Serve Interactive Swagger UI
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// Serve Raw JSON Spec (Useful for Postman import)
+app.get('/docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
 });
 
 app.use(helmet());
