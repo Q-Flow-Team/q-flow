@@ -1,0 +1,12 @@
+{
+  "name": "q-flow",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "database"
+  ],
+  "scripts": {
+    "build": "npm run build --prefix database && npm run build --prefix backend",
+    "start": "node backend/dist/app.js"
+  }
+}
