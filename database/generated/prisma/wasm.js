@@ -201,7 +201,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "C:\\Users\\Fabrice\\OneDrive\\Desktop\\Amalitech Internship\\Projects\\Q-Flow\\q-flow\\database\\generated\\prisma",
+      "value": "/home/saeed/Documents/Amalitech/q-flow/database/generated/prisma",
       "fromEnvVar": null
     },
     "config": {
@@ -210,7 +210,7 @@ const config = {
     "binaryTargets": [
       {
         "fromEnvVar": null,
-        "value": "windows",
+        "value": "debian-openssl-3.0.x",
         "native": true
       },
       {
@@ -219,12 +219,11 @@ const config = {
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "C:\\Users\\Fabrice\\OneDrive\\Desktop\\Amalitech Internship\\Projects\\Q-Flow\\q-flow\\database\\prisma\\schema.prisma",
+    "sourceFilePath": "/home/saeed/Documents/Amalitech/q-flow/database/prisma/schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
-    "rootEnvPath": null,
-    "schemaEnvPath": "../../.env"
+    "rootEnvPath": null
   },
   "relativePath": "../../prisma",
   "clientVersion": "6.19.3",

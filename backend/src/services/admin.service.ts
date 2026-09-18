@@ -242,7 +242,7 @@ export async function createPriorityTicket(data: {
         ticketNumber,
         customerName: data.customerName,
         phoneNumber: data.phoneNumber,
-        preferredChannel: data.preferredChannel || NotificationChannel.WHATSAPP,
+        preferredChannel: data.preferredChannel || NotificationChannel.SMS,
         status: TicketStatus.WAITING,
         initialPosition: 1,
         currentPosition: 1,
@@ -334,6 +334,7 @@ export async function overrideTicketStatus(
 export async function getAllTickets(filters: {
   status?: TicketStatus;
   search?: string;
+  date?: string;
   page?: number;
   limit?: number;
 }) {
@@ -347,6 +348,15 @@ export async function getAllTickets(filters: {
     whereClause.status = filters.status;
   }
 
+  if (filters.date) {
+    const start = new Date(filters.date);
+    if (!Number.isNaN(start.getTime())) {
+      const end = new Date(start);
+      end.setDate(end.getDate() + 1);
+      whereClause.joinedAt = { gte: start, lt: end };
+    }
+  }
+
   if (filters.search) {
     whereClause.OR = [
       { ticketNumber: { contains: filters.search, mode: 'insensitive' } },
@@ -355,7 +365,7 @@ export async function getAllTickets(filters: {
     ];
   }
 
-  const [tickets, totalCount] = await Promise.all([
+  const [tickets, total] = await Promise.all([
     prisma.ticket.findMany({
       where: whereClause,
       orderBy: { joinedAt: 'desc' },
@@ -381,11 +391,14 @@ export async function getAllTickets(filters: {
 
   return {
     tickets,
+    total,
+    page,
+    limit,
     pagination: {
-      totalCount,
+      totalCount: total,
       page,
       limit,
-      totalPages: Math.ceil(totalCount / limit),
+      totalPages: Math.ceil(total / limit),
     },
   };
 }

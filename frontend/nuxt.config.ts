@@ -6,6 +6,14 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   ssr: true,
   css: ['~/assets/css/main.css'],
+  runtimeConfig: {
+    public: {
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://q-flow-backend.vercel.app/api/v1',
+    },
+  },
+  routeRules: {
+    '/customer/join': { redirect: '/', redirectCode: 302 },
+  },
   app: {
     head: {
       title: 'Q-Flow Queue Management',

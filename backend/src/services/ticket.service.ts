@@ -1,21 +1,7 @@
 import { prisma } from '../config/db.js';
 import { TicketStatus, NotificationTrigger } from '@qflow/database/client';
 import { broadcastQueueEvent, SOCKET_EVENTS } from '../sockets/queue.socket.js';
-
-
-/**
- * 1. Helper to record notification logs
- */
-async function logNotification(ticketId: string, channel: any, trigger: NotificationTrigger, message: string) {
-  await prisma.notificationLog.create({
-    data: {
-      ticketId,
-      channel,
-      trigger,
-      message,
-    },
-  });
-}
+import { notifyTicket, hasTriggerBeenSent } from './notification.service.js';
 
 /**
  * 2. Ticket Service Functions
@@ -52,7 +38,7 @@ export async function createTicket(data: {
       ticketNumber,
       customerName: data.customerName,
       phoneNumber: data.phoneNumber,
-      preferredChannel: data.preferredChannel || 'WHATSAPP',
+      preferredChannel: data.preferredChannel || 'SMS',
       status: TicketStatus.WAITING,
       initialPosition: position,
       currentPosition: position,
@@ -60,8 +46,12 @@ export async function createTicket(data: {
     },
   });
 
-  // Log initial join notification event
-  await logNotification(ticket.id, ticket.preferredChannel, 'INITIAL_JOIN', `Your ticket ${ticketNumber} is confirmed. Initial position: ${position}.`);
+  // Log initial join notification event (SMS when customer prefers SMS)
+  await notifyTicket(
+    ticket,
+    'INITIAL_JOIN',
+    `Q-Flow: Hi ${ticket.customerName || 'there'}, your ticket is ${ticketNumber}. You are position ${position} in the queue. Estimated wait ~${estimatedWaitTimeMinutes} min. We will text you when it is your turn.`
+  );
 
   return ticket;
 }
@@ -178,13 +168,25 @@ export async function callNextTicket(staffId: string) {
     },
   });
 
-  // Log counter call notification
-  await logNotification(
-    updatedTicket.id, 
-    updatedTicket.preferredChannel, 
-    'COUNTER_CALL', 
-    `It's your turn! Please proceed to ${counter.counterName}.`
+  // Notify the called customer that it's their turn (SMS when preferred)
+  await notifyTicket(
+    updatedTicket,
+    'COUNTER_CALL',
+    `Q-Flow: It's your turn! Please proceed to ${counter.counterName} (Counter ${counter.counterNumber}).`
   );
+
+  // Alert the next waiting customer that they're almost up (deduped per ticket)
+  const nextUp = await prisma.ticket.findFirst({
+    where: { status: TicketStatus.WAITING },
+    orderBy: { joinedAt: 'asc' },
+  });
+  if (nextUp && !(await hasTriggerBeenSent(nextUp.id, 'THRESHOLD_ALERT'))) {
+    await notifyTicket(
+      nextUp,
+      'THRESHOLD_ALERT',
+      `Q-Flow: You're next in line at ${counter.counterName}. Please be ready.`
+    );
+  }
 
   return { counter, ticket: updatedTicket };
 }
@@ -208,11 +210,10 @@ export async function skipTicket(ticketId: string, staffId: string) {
       },
     });
 
-    await logNotification(
-      ticketId,
-      ticket.preferredChannel,
-      'INITIAL_JOIN',
-      `Your ticket ${ticket.ticketNumber} has been automatically cancelled after 3 skipped calls.`
+    await notifyTicket(
+      autoCancelledTicket,
+      'AUTO_CANCELLED',
+      `Q-Flow: Ticket ${ticket.ticketNumber} has been auto-cancelled after being skipped 3 times. Please rejoin the queue.`
     );
 
     return autoCancelledTicket;
@@ -318,9 +319,44 @@ export async function getStaffShiftOverview(staffId: string) {
     where: { status: TicketStatus.WAITING },
   });
 
+  const waiting = await prisma.ticket.findMany({
+    where: { status: TicketStatus.WAITING },
+    orderBy: [{ currentPosition: 'asc' }, { joinedAt: 'asc' }],
+    take: 200,
+  });
+
   return {
     counter,
     activeTicket: currentCalledTicket,
     waitingCount,
+    waiting,
   };
+}
+
+//-------------Live Waiting Queue for Staff---------------
+export async function getStaffQueue(staffId: string) {
+  const counter = await prisma.counter.findUnique({
+    where: { currentStaffId: staffId },
+  });
+
+  if (!counter || !counter.isActive) {
+    throw new Error('Staff member is not bound to an active counter shift.');
+  }
+
+  const waiting = await prisma.ticket.findMany({
+    where: { status: TicketStatus.WAITING },
+    orderBy: [{ currentPosition: 'asc' }, { joinedAt: 'asc' }],
+    take: 200,
+  });
+
+  return { counter, waiting };
+}
+
+//-------------Ticket History for a Staff Member---------------
+export async function getStaffTicketHistory(staffId: string) {
+  return await prisma.ticket.findMany({
+    where: { servicedByStaffId: staffId },
+    orderBy: { joinedAt: 'desc' },
+    take: 200,
+  });
 }

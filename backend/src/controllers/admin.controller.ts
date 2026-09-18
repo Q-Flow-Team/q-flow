@@ -244,11 +244,12 @@ export async function handleOverrideTicketStatus(req: AuthenticatedRequest, res:
 // GET /api/v1/admin/tickets
 export async function handleGetAllTickets(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
-    const { status, search, page, limit } = req.query;
+    const { status, search, date, page, limit } = req.query;
 
     const result = await getAllTickets({
       status: status ? (status as TicketStatus) : undefined,
       search: search ? String(search) : undefined,
+      date: date ? String(date) : undefined,
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : 50,
     });
