@@ -1,4 +1,11 @@
 import swaggerJSDoc from 'swagger-jsdoc';
+import path from 'path';
+
+// Normalize path separators to forward slashes for cross-platform globbing
+const rootDir = process.cwd().replace(/\\/g, '/');
+
+const routesPath = `${rootDir}/src/routes/**/*.ts`;
+const distRoutesPath = `${rootDir}/dist/routes/**/*.js`;
 
 const options: swaggerJSDoc.Options = {
   definition: {
@@ -13,7 +20,7 @@ const options: swaggerJSDoc.Options = {
         url: process.env.VERCEL_URL
           ? `https://${process.env.VERCEL_URL}/api/v1`
           : 'http://localhost:3000/api/v1',
-        description: process.env.VERCEL_URL ? 'Production Server' : 'Development Server',
+        description: process.env.VERCEL_URL ? 'Production' : 'Development',
       },
     ],
     components: {
@@ -26,13 +33,7 @@ const options: swaggerJSDoc.Options = {
       },
     },
   },
-  // Include both source TS and compiled JS routes dynamically
-  apis: [
-    './src/routes/**/*.ts',
-    './dist/routes/**/*.js',
-    './src/app.ts',
-    './dist/app.js',
-  ],
+  apis: [routesPath, distRoutesPath],
 };
 
 export const swaggerSpec = swaggerJSDoc(options);

@@ -14,7 +14,6 @@ import { apiLimiter } from './middlewares/rateLimit.middleware.js';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './config/swagger.js';
 
-
 const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:3000')
   .split(',')
   .map((origin) => origin.trim());
@@ -41,8 +40,6 @@ const io = new Server(server, {
 });
 
 
-
-// CDN options for Vercel static asset delivery
 const swaggerUiOptions = {
   customCssUrl: 'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.8/swagger-ui.min.css',
   customJs: [
