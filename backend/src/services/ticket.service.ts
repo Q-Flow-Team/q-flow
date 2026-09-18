@@ -1,20 +1,31 @@
 import { prisma } from '../config/db.js';
-import { TicketStatus, NotificationTrigger } from '@qflow/database/client';
+import { TicketStatus, NotificationTrigger, NotificationChannel } from '@qflow/database/client';
 import { broadcastQueueEvent, SOCKET_EVENTS } from '../sockets/queue.socket.js';
-
+import { sendSMSNotification } from './notification.service.js';
 
 /**
  * 1. Helper to record notification logs
  */
-async function logNotification(ticketId: string, channel: any, trigger: NotificationTrigger, message: string) {
+async function logNotification(
+  ticketId: string,
+  channel: NotificationChannel,
+  trigger: NotificationTrigger,
+  message: string,
+  phoneNumber: string
+) {
+  let delivered = false;
+
+  if (channel === 'SMS') {
+    delivered = await sendSMSNotification({ recipient: phoneNumber, message });
+  } else if (channel === 'WHATSAPP') {
+    // delivered = await sendWhatsAppNotification({ recipient: phoneNumber, message });
+  }
+
   await prisma.notificationLog.create({
-    data: {
-      ticketId,
-      channel,
-      trigger,
-      message,
-    },
+    data: { ticketId, channel, trigger, message },
   });
+
+  return delivered;
 }
 
 /**
@@ -61,7 +72,7 @@ export async function createTicket(data: {
   });
 
   // Log initial join notification event
-  await logNotification(ticket.id, ticket.preferredChannel, 'INITIAL_JOIN', `Your ticket ${ticketNumber} is confirmed. Initial position: ${position}.`);
+  await logNotification(ticket.id, ticket.preferredChannel, 'INITIAL_JOIN', `Your ticket ${ticketNumber} is confirmed. Initial position: ${position}.`, ticket.phoneNumber);
 
   return ticket;
 }
@@ -183,7 +194,8 @@ export async function callNextTicket(staffId: string) {
     updatedTicket.id, 
     updatedTicket.preferredChannel, 
     'COUNTER_CALL', 
-    `It's your turn! Please proceed to ${counter.counterName}.`
+    `It's your turn! Please proceed to ${counter.counterName}.`,
+    updatedTicket.phoneNumber
   );
 
   return { counter, ticket: updatedTicket };
@@ -212,7 +224,8 @@ export async function skipTicket(ticketId: string, staffId: string) {
       ticketId,
       ticket.preferredChannel,
       'INITIAL_JOIN',
-      `Your ticket ${ticket.ticketNumber} has been automatically cancelled after 3 skipped calls.`
+      `Your ticket ${ticket.ticketNumber} has been automatically cancelled after 3 skipped calls.`,
+      ticket.phoneNumber
     );
 
     return autoCancelledTicket;
