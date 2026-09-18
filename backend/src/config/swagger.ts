@@ -10,8 +10,10 @@ const options: swaggerJSDoc.Options = {
     },
     servers: [
       {
-        url: 'http://localhost:3000/api/v1',
-        description: 'Development Server',
+        url: process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}/api/v1`
+          : 'http://localhost:3000/api/v1',
+        description: process.env.VERCEL_URL ? 'Production Server' : 'Development Server',
       },
     ],
     components: {
@@ -24,7 +26,13 @@ const options: swaggerJSDoc.Options = {
       },
     },
   },
-  apis: ['./src/routes/*.ts', './src/app.ts'], // Path to files containing JSDoc annotations
+  // Include both source TS and compiled JS routes dynamically
+  apis: [
+    './src/routes/**/*.ts',
+    './dist/routes/**/*.js',
+    './src/app.ts',
+    './dist/app.js',
+  ],
 };
 
 export const swaggerSpec = swaggerJSDoc(options);
