@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsx watch src/app.ts",
     "vercel-build": "prisma generate --schema=../database/prisma/schema.prisma && tsc",
-    "build": "tsc",
+    "generate:swagger": "tsx scripts/generate-swagger.ts",
+    "build": "npm run generate:swagger && tsc",
     "start": "node dist/app.js"
   },
   "dependencies": {
