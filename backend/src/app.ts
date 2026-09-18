@@ -41,16 +41,13 @@ const io = new Server(server, {
 
 
 // 1. Explicitly serve the JSON spec
-app.get('/docs/json', (req, res) => {
+app.get('/docs/json', (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/json');
-  res.send(swaggerSpec);
+  res.json(swaggerSpec);
 });
 
-// 2. Pass the JSON endpoint URL to swaggerUi.setup
+// 2. Pass swaggerSpec directly instead of null
 const swaggerUiOptions = {
-  swaggerOptions: {
-    url: '/docs/json', // Points Swagger UI directly to the JSON route
-  },
   customCssUrl: 'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.8/swagger-ui.min.css',
   customJs: [
     'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.8/swagger-ui-bundle.js',
@@ -58,7 +55,7 @@ const swaggerUiOptions = {
   ],
 };
 
-app.use('/docs', swaggerUi.serve, swaggerUi.setup(null, swaggerUiOptions));
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
 
 app.use(helmet());
 app.use(cors(corsOptions));
