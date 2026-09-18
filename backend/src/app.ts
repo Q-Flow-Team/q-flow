@@ -40,7 +40,17 @@ const io = new Server(server, {
 });
 
 
+// 1. Explicitly serve the JSON spec
+app.get('/docs/json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
+// 2. Pass the JSON endpoint URL to swaggerUi.setup
 const swaggerUiOptions = {
+  swaggerOptions: {
+    url: '/docs/json', // Points Swagger UI directly to the JSON route
+  },
   customCssUrl: 'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.8/swagger-ui.min.css',
   customJs: [
     'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.8/swagger-ui-bundle.js',
@@ -48,14 +58,7 @@ const swaggerUiOptions = {
   ],
 };
 
-// Serve Swagger UI
-app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
-
-// Serve Raw JSON Spec (Useful for Postman import)
-app.get('/docs.json', (req, res) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.send(swaggerSpec);
-});
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(null, swaggerUiOptions));
 
 app.use(helmet());
 app.use(cors(corsOptions));
