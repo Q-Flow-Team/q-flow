@@ -20,7 +20,9 @@ async function logNotification(
   if (channel === 'SMS') {
     console.log(`Sending SMS to ${phoneNumber}: ${message}`);
     delivered = await sendSMSNotification({ recipient: phoneNumber, message });
+    console.log(`SMS delivery status: ${delivered}`);
   } else if (channel === 'WHATSAPP') {
+    console.log(`Sending WhatsApp message to ${phoneNumber}: ${message}`);
     // delivered = await sendWhatsAppNotification({ recipient: phoneNumber, message });
   }
 
@@ -36,11 +38,49 @@ async function logNotification(
  */
 
 //----------------Join Queue (Customer check-in)--------------
+function sanitizeCustomerName(name: string): string {
+  const trimmed = name.trim().replace(/\s+/g, ' ');
+
+  if (trimmed.length < 2 || trimmed.length > 100) {
+    throw new Error('Customer name must be between 2 and 100 characters.');
+  }
+
+  // Letters (any language), spaces, apostrophes, hyphens, periods only
+  if (!/^[\p{L}\s.'-]+$/u.test(trimmed)) {
+    throw new Error('Customer name contains invalid characters.');
+  }
+
+  return trimmed;
+}
+
+function sanitizePhoneNumber(phone: string): string {
+  const digitsOnly = phone.replace(/[^\d]/g, '');
+
+  // Normalize to 233XXXXXXXXX (Ghana country code, no leading +/0)
+  let normalized: string;
+  if (digitsOnly.length === 10 && digitsOnly.startsWith('0')) {
+    normalized = `233${digitsOnly.slice(1)}`;
+  } else if (digitsOnly.length === 12 && digitsOnly.startsWith('233')) {
+    normalized = digitsOnly;
+  } else if (digitsOnly.length === 9) {
+    normalized = `233${digitsOnly}`;
+  } else {
+    throw new Error(
+      'Invalid phone number. Expected a Ghanaian number, e.g. 0241234567 or 233241234567.'
+    );
+  }
+
+  return normalized;
+}
+
 export async function createTicket(data: {
   customerName: string;
   phoneNumber: string;
   preferredChannel?: 'WHATSAPP' | 'SMS' | 'NONE';
 }) {
+  const customerName = sanitizeCustomerName(data.customerName);
+  const phoneNumber = sanitizePhoneNumber(data.phoneNumber);
+
   // Generate daily ticket sequence number (e.g., "A-001")
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
@@ -64,8 +104,8 @@ export async function createTicket(data: {
   const ticket = await prisma.ticket.create({
     data: {
       ticketNumber,
-      customerName: data.customerName,
-      phoneNumber: data.phoneNumber,
+      customerName,
+      phoneNumber,
       preferredChannel: data.preferredChannel || 'WHATSAPP',
       status: TicketStatus.WAITING,
       initialPosition: position,
