@@ -13,9 +13,12 @@ async function logNotification(
   message: string,
   phoneNumber: string
 ) {
+
+  console.log(`Logging notification for ticket ${ticketId}: ${message}`);
   let delivered = false;
 
   if (channel === 'SMS') {
+    console.log(`Sending SMS to ${phoneNumber}: ${message}`);
     delivered = await sendSMSNotification({ recipient: phoneNumber, message });
   } else if (channel === 'WHATSAPP') {
     // delivered = await sendWhatsAppNotification({ recipient: phoneNumber, message });
