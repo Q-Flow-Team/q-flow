@@ -1,20 +1,36 @@
 import { prisma } from '../config/db.js';
-import { TicketStatus, NotificationTrigger } from '@qflow/database/client';
+import { TicketStatus, NotificationTrigger, NotificationChannel } from '@qflow/database/client';
 import { broadcastQueueEvent, SOCKET_EVENTS } from '../sockets/queue.socket.js';
-
+import { sendSMSNotification } from './notification.service.js';
 
 /**
  * 1. Helper to record notification logs
  */
-async function logNotification(ticketId: string, channel: any, trigger: NotificationTrigger, message: string) {
+async function logNotification(
+  ticketId: string,
+  channel: NotificationChannel,
+  trigger: NotificationTrigger,
+  message: string,
+  phoneNumber: string
+) {
+
+  console.log(`Logging notification for ticket ${ticketId}: ${message}`);
+  let delivered = false;
+
+  if (channel === 'SMS') {
+    console.log(`Sending SMS to ${phoneNumber}: ${message}`);
+    delivered = await sendSMSNotification({ recipient: phoneNumber, message });
+    console.log(`SMS delivery status: ${delivered}`);
+  } else if (channel === 'WHATSAPP') {
+    console.log(`Sending WhatsApp message to ${phoneNumber}: ${message}`);
+    // delivered = await sendWhatsAppNotification({ recipient: phoneNumber, message });
+  }
+
   await prisma.notificationLog.create({
-    data: {
-      ticketId,
-      channel,
-      trigger,
-      message,
-    },
+    data: { ticketId, channel, trigger, message },
   });
+
+  return delivered;
 }
 
 /**
@@ -22,11 +38,49 @@ async function logNotification(ticketId: string, channel: any, trigger: Notifica
  */
 
 //----------------Join Queue (Customer check-in)--------------
+function sanitizeCustomerName(name: string): string {
+  const trimmed = name.trim().replace(/\s+/g, ' ');
+
+  if (trimmed.length < 2 || trimmed.length > 100) {
+    throw new Error('Customer name must be between 2 and 100 characters.');
+  }
+
+  // Letters (any language), spaces, apostrophes, hyphens, periods only
+  if (!/^[\p{L}\s.'-]+$/u.test(trimmed)) {
+    throw new Error('Customer name contains invalid characters.');
+  }
+
+  return trimmed;
+}
+
+function sanitizePhoneNumber(phone: string): string {
+  const digitsOnly = phone.replace(/[^\d]/g, '');
+
+  // Normalize to 233XXXXXXXXX (Ghana country code, no leading +/0)
+  let normalized: string;
+  if (digitsOnly.length === 10 && digitsOnly.startsWith('0')) {
+    normalized = `233${digitsOnly.slice(1)}`;
+  } else if (digitsOnly.length === 12 && digitsOnly.startsWith('233')) {
+    normalized = digitsOnly;
+  } else if (digitsOnly.length === 9) {
+    normalized = `233${digitsOnly}`;
+  } else {
+    throw new Error(
+      'Invalid phone number. Expected a Ghanaian number, e.g. 0241234567 or 233241234567.'
+    );
+  }
+
+  return normalized;
+}
+
 export async function createTicket(data: {
   customerName: string;
   phoneNumber: string;
   preferredChannel?: 'WHATSAPP' | 'SMS' | 'NONE';
 }) {
+  const customerName = sanitizeCustomerName(data.customerName);
+  const phoneNumber = sanitizePhoneNumber(data.phoneNumber);
+
   // Generate daily ticket sequence number (e.g., "A-001")
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
@@ -50,8 +104,8 @@ export async function createTicket(data: {
   const ticket = await prisma.ticket.create({
     data: {
       ticketNumber,
-      customerName: data.customerName,
-      phoneNumber: data.phoneNumber,
+      customerName,
+      phoneNumber,
       preferredChannel: data.preferredChannel || 'WHATSAPP',
       status: TicketStatus.WAITING,
       initialPosition: position,
@@ -61,7 +115,7 @@ export async function createTicket(data: {
   });
 
   // Log initial join notification event
-  await logNotification(ticket.id, ticket.preferredChannel, 'INITIAL_JOIN', `Your ticket ${ticketNumber} is confirmed. Initial position: ${position}.`);
+  await logNotification(ticket.id, ticket.preferredChannel, 'INITIAL_JOIN', `Your ticket ${ticketNumber} is confirmed. Initial position: ${position}.`, ticket.phoneNumber);
 
   return ticket;
 }
@@ -183,7 +237,8 @@ export async function callNextTicket(staffId: string) {
     updatedTicket.id, 
     updatedTicket.preferredChannel, 
     'COUNTER_CALL', 
-    `It's your turn! Please proceed to ${counter.counterName}.`
+    `It's your turn! Please proceed to ${counter.counterName}.`,
+    updatedTicket.phoneNumber
   );
 
   return { counter, ticket: updatedTicket };
@@ -212,7 +267,8 @@ export async function skipTicket(ticketId: string, staffId: string) {
       ticketId,
       ticket.preferredChannel,
       'INITIAL_JOIN',
-      `Your ticket ${ticket.ticketNumber} has been automatically cancelled after 3 skipped calls.`
+      `Your ticket ${ticket.ticketNumber} has been automatically cancelled after 3 skipped calls.`,
+      ticket.phoneNumber
     );
 
     return autoCancelledTicket;

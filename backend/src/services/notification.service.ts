@@ -11,7 +11,7 @@ export async function sendSMSNotification({ recipient, message }: SMSPayload): P
 
   try {
     const response = await axios.post(
-      'https://api.bms.africa/v1/sms/quick',
+      `https://api.mnotify.com/api/sms/quick?key=${apiKey}`,
       {
         recipient: [recipient],
         sender: senderId,
@@ -19,10 +19,10 @@ export async function sendSMSNotification({ recipient, message }: SMSPayload): P
       },
       {
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
+        timeout: 10000, // 10s — don't let a slow/hung API block a check-in request indefinitely
       }
     );
 

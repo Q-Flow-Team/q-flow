@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsx watch src/app.ts",
     "vercel-build": "prisma generate --schema=../database/prisma/schema.prisma && tsc",
-    "build": "tsc",
+    "generate:swagger": "tsx scripts/generate-swagger.ts",
+    "build": "npm run generate:swagger && tsc",
     "start": "node dist/app.js"
   },
   "dependencies": {
@@ -22,6 +23,8 @@
     "jsonwebtoken": "^9.0.3",
     "qrcode": "^1.5.4",
     "socket.io": "^4.8.3",
+    "swagger-jsdoc": "^6.3.0",
+    "swagger-ui-express": "^5.0.1",
     "twilio": "^6.1.1"
   },
   "devDependencies": {
@@ -31,6 +34,8 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.0.0",
     "@types/qrcode": "^1.5.6",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.8",
     "tsx": "^4.19.0",
     "typescript": "^5.0.0"
   }
