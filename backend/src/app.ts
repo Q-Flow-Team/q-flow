@@ -11,6 +11,9 @@ import authRoutes from './routes/auth.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import staffRoutes from './routes/staff.routes.js';
 import { apiLimiter } from './middlewares/rateLimit.middleware.js';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './config/swagger.js';
+
 
 const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:3000')
   .split(',')
@@ -35,6 +38,16 @@ const io = new Server(server, {
     origin: allowedOrigins,
     credentials: true,
   },
+});
+
+
+// Serve Interactive Swagger UI
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// Serve Raw JSON Spec (Useful for Postman import)
+app.get('/docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
 });
 
 app.use(helmet());
