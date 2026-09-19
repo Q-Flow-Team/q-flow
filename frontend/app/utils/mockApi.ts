@@ -565,6 +565,21 @@ export async function handleMockRequest<T = any>(
     const ticket = db.tickets.find((t) => t.id === p2)
     if (!ticket) throw httpError(404, 'Ticket not found.')
 
+    if (p3 === 'serve') {
+      if (ticket.status === 'SERVED') {
+        return { message: `${ticket.ticketNumber} already served`, ticket: ticketView(db, ticket) } as T
+      }
+      if (!['WAITING', 'CALLED', 'IN_SERVICE'].includes(ticket.status)) {
+        throw httpError(400, 'This ticket cannot be served.')
+      }
+      ticket.status = 'SERVED'
+      ticket.completedAt = nowIso()
+      if (!ticket.counterId && me.activeCounterId) ticket.counterId = me.activeCounterId
+      ticket.servicedByStaffId = me.id
+      saveDb(db)
+      return { message: `${ticket.ticketNumber} served`, ticket: ticketView(db, ticket) } as T
+    }
+
     if (p3 === 'start') {
       if (ticket.status !== 'CALLED') throw httpError(400, 'Only a called ticket can be started.')
       ticket.status = 'IN_SERVICE'

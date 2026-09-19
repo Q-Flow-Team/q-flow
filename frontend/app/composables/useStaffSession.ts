@@ -96,6 +96,13 @@ export function useStaffSession() {
     return res.data?.ticket
   }
 
+  const serveTicket = async (id: string) => {
+    const res = await apiPost<{ message: string; ticket: StaffTicket }>(`/staff/tickets/${id}/serve`)
+    trackTicket(res.ticket)
+    await refresh(true)
+    return res.ticket
+  }
+
   const startService = async (id: string) => {
     const res = await apiPost<{ message: string; ticket: StaffTicket }>(`/staff/tickets/${id}/start`)
     trackTicket(res.ticket)
@@ -138,6 +145,7 @@ export function useStaffSession() {
     refresh,
     fetchHistory,
     callNext,
+    serveTicket,
     startService,
     completeService,
     skipTicket,

@@ -4,7 +4,7 @@ import { formatTime, channelLabel } from '~/utils/format'
 
 const emit = defineEmits<{ selectTicket: [id: string] }>()
 
-const { overview, loading, callNext, trackTicket, error } = useStaffSession()
+const { overview, loading, callNext, serveTicket, trackTicket, error } = useStaffSession()
 const showToast = inject<(msg: string) => void>('showToast', () => {})
 const search = ref('')
 const filter = ref('')
@@ -40,10 +40,10 @@ const handleCallNext = async () => {
 const handleServe = async (t: any) => {
   servingId.value = t.id
   try {
-    const ticket = await callNext()
-    if (ticket) showToast(`Calling ${ticket.ticketNumber} — ${ticket.customerName}`)
+    const ticket = await serveTicket(t.id)
+    if (ticket) showToast(`${ticket.ticketNumber} served — ${ticket.customerName}`)
   } catch (err: any) {
-    showToast(err?.message || 'Failed to call this customer')
+    showToast(err?.message || 'Failed to serve this customer')
   } finally {
     servingId.value = null
   }
