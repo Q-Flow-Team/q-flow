@@ -104,7 +104,7 @@ const handleIssuePriority = async () => {
       </div>
     </div>
 
-    <div v-if="issueOpen" class="bg-card border border-border rounded-xl p-6">
+    <div v-if="issueOpen" class="bg-card border border-border rounded-2xl shadow-card p-6">
       <h3 class="text-sm font-bold text-foreground mb-1">Issue VIP / Priority Ticket</h3>
       <p class="text-xs text-muted-foreground mb-5">Inserted at position 1 — all waiting customers shift down.</p>
       <form @submit.prevent="handleIssuePriority" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -180,7 +180,7 @@ const handleIssuePriority = async () => {
 
     <p v-if="error" class="text-xs text-danger">{{ error }}</p>
 
-    <div class="bg-card border border-border rounded-xl overflow-hidden">
+    <div class="bg-card border border-border rounded-2xl shadow-card overflow-hidden">
       <SkeletonTable v-if="loading && !overview" :rows="7" :cols="5" />
       <div v-else class="overflow-x-auto">
         <table class="w-full text-sm">
@@ -203,7 +203,7 @@ const handleIssuePriority = async () => {
             <tr
               v-for="t in rows"
               :key="t.id"
-              class="transition-[box-shadow,background-color] duration-150 hover:bg-muted/40 hover:shadow-[0_5px_12px_-5px_rgba(17,24,39,0.55)] cursor-pointer"
+              class="transition-colors duration-150 hover:bg-muted/50 cursor-pointer"
               @click="handleSelect(t)"
             >
               <td class="px-5 py-3.5 font-extrabold text-primary tabular-nums">{{ t.ticketNumber }}</td>

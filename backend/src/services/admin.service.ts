@@ -3,6 +3,7 @@ import { prisma } from '../config/db.js';
 import bcrypt from 'bcrypt';
 import { UserRole, TicketStatus, NotificationChannel  } from '@qflow/database/client';
 import { broadcastQueueEvent, SOCKET_EVENTS } from '../sockets/queue.socket.js';
+import { notifyTicket } from './notification.service.js';
 
 
 /**
@@ -259,6 +260,13 @@ export async function createPriorityTicket(data: {
     position: 1,
   });
 
+  // SMS the VIP customer that they've been queued at position 1
+  await notifyTicket(
+    priorityTicket,
+    'INITIAL_JOIN',
+    `Q-Flow: Hi ${priorityTicket.customerName || 'there'}, your priority ticket is ${priorityTicket.ticketNumber}. You are position 1 in the queue. We will text you when it is your turn.`
+  );
+
   return priorityTicket;
 }
 
@@ -324,6 +332,15 @@ export async function overrideTicketStatus(
     status: updatedTicket.status,
     reason: reason || 'Admin override executed',
   });
+
+  // Notify the customer when the override cancels their ticket
+  if (updatedTicket.status === TicketStatus.CANCELLED) {
+    await notifyTicket(
+      updatedTicket,
+      'CANCELLED',
+      `Q-Flow: Your ticket ${updatedTicket.ticketNumber} has been cancelled. Please rejoin the queue if needed.`
+    );
+  }
 
   return updatedTicket;
 }

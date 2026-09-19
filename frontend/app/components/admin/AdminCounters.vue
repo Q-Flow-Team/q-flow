@@ -121,7 +121,7 @@ const copyId = async (c: Counter) => {
       </button>
     </div>
 
-    <div v-if="showForm" class="bg-card border border-border rounded-xl p-5">
+    <div v-if="showForm" class="bg-card border border-border rounded-2xl shadow-card p-5">
       <h3 class="text-sm font-bold text-foreground mb-3">New Counter</h3>
       <div class="flex flex-col sm:flex-row gap-2.5">
         <input
@@ -153,13 +153,13 @@ const copyId = async (c: Counter) => {
 
     <p v-if="errorMsg" class="text-xs text-danger">{{ errorMsg }}</p>
 
-    <div class="bg-card border border-border rounded-xl overflow-hidden">
+    <div class="bg-card border border-border rounded-2xl shadow-card overflow-hidden">
       <SkeletonTable v-if="loading" :rows="counters.length || 5" :cols="3" />
       <div v-else-if="counters.length === 0" class="py-14 text-center text-sm text-muted-foreground">
         No counters configured yet.
       </div>
       <div v-else class="divide-y divide-border">
-        <div v-for="c in counters" :key="c.id" class="flex flex-wrap items-center justify-between gap-3 px-5 py-4 transition-[box-shadow,background-color] duration-150 hover:bg-muted/40 hover:shadow-[0_5px_12px_-5px_rgba(17,24,39,0.55)]">
+        <div v-for="c in counters" :key="c.id" class="flex flex-wrap items-center justify-between gap-3 px-5 py-4 transition-colors duration-150 hover:bg-muted/50">
           <div class="flex items-center gap-3 min-w-0">
             <div :class="['w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm flex-shrink-0', c.isActive ? 'bg-primary-light text-primary' : 'bg-muted text-muted-foreground']">
               {{ c.counterNumber }}

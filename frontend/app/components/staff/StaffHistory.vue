@@ -39,7 +39,7 @@ onMounted(() => fetchHistory())
       </select>
     </div>
 
-    <div class="bg-card border border-border rounded-xl overflow-hidden">
+    <div class="bg-card border border-border rounded-2xl shadow-card overflow-hidden">
       <SkeletonTable v-if="historyLoading" :rows="8" :cols="6" />
       <div v-else class="overflow-x-auto">
         <table class="w-full text-sm">
@@ -59,7 +59,7 @@ onMounted(() => fetchHistory())
                 No completed tickets yet.
               </td>
             </tr>
-            <tr v-for="t in paginated" :key="t.id" class="transition-[box-shadow,background-color] duration-150 hover:bg-muted/40 hover:shadow-[0_5px_12px_-5px_rgba(17,24,39,0.55)]">
+            <tr v-for="t in paginated" :key="t.id" class="transition-colors duration-150 hover:bg-muted/50">
               <td class="px-5 py-3.5 font-extrabold text-primary tabular-nums">{{ t.ticketNumber }}</td>
               <td class="px-5 py-3.5 font-semibold text-foreground">{{ t.customerName }}</td>
               <td class="px-5 py-3.5 text-muted-foreground hidden sm:table-cell">{{ t.phoneNumber }}</td>

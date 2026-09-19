@@ -54,7 +54,7 @@ const handleSkip = () => run(skipTicket, (t) => `${t.ticketNumber} skipped`)
       Back to Queue
     </button>
 
-    <div class="bg-card border border-border rounded-xl p-6">
+    <div class="bg-card border border-border rounded-2xl shadow-card p-6">
       <div class="flex items-start justify-between gap-4">
         <div>
           <p class="text-xs font-bold text-muted-foreground uppercase tracking-wider">Ticket</p>
@@ -65,7 +65,7 @@ const handleSkip = () => run(skipTicket, (t) => `${t.ticketNumber} skipped`)
       </div>
     </div>
 
-    <div class="bg-card border border-border rounded-xl p-5">
+    <div class="bg-card border border-border rounded-2xl shadow-card p-5">
       <h3 class="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">Customer</h3>
       <div class="space-y-3">
         <div class="flex items-center justify-between">
@@ -94,7 +94,7 @@ const handleSkip = () => run(skipTicket, (t) => `${t.ticketNumber} skipped`)
       </div>
     </div>
 
-    <div v-if="ticket.calledAt || ticket.servicedAt || ticket.completedAt" class="bg-card border border-border rounded-xl p-5">
+    <div v-if="ticket.calledAt || ticket.servicedAt || ticket.completedAt" class="bg-card border border-border rounded-2xl shadow-card p-5">
       <h3 class="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">Timeline</h3>
       <div class="space-y-2 text-sm">
         <div v-if="ticket.calledAt" class="flex justify-between">
@@ -116,7 +116,7 @@ const handleSkip = () => run(skipTicket, (t) => `${t.ticketNumber} skipped`)
       </div>
     </div>
 
-    <div class="bg-card border border-border rounded-xl p-5">
+    <div class="bg-card border border-border rounded-2xl shadow-card p-5">
       <h3 class="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">Actions</h3>
 
       <template v-if="ticket.status === 'CALLED'">
@@ -185,7 +185,7 @@ const handleSkip = () => run(skipTicket, (t) => `${t.ticketNumber} skipped`)
       </svg>
       Back to Queue
     </button>
-    <div class="bg-card border border-border rounded-xl p-10 text-center text-sm text-muted-foreground">
+    <div class="bg-card border border-border rounded-2xl shadow-card p-10 text-center text-sm text-muted-foreground">
       No ticket selected.
     </div>
   </div>

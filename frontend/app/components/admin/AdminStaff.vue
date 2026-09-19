@@ -145,7 +145,7 @@ const handleReset = async () => {
       </button>
     </div>
 
-    <div v-if="showForm" class="bg-card border border-border rounded-xl p-6">
+    <div v-if="showForm" class="bg-card border border-border rounded-2xl shadow-card p-6">
       <h3 class="text-sm font-bold text-foreground mb-5">New Staff Account</h3>
       <form @submit.prevent="handleSubmit">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
@@ -194,7 +194,7 @@ const handleReset = async () => {
 
     <p v-if="errorMsg" class="text-xs text-danger">{{ errorMsg }}</p>
 
-    <div class="bg-card border border-border rounded-xl overflow-hidden">
+    <div class="bg-card border border-border rounded-2xl shadow-card overflow-hidden">
       <SkeletonTable v-if="loading" :rows="6" :cols="5" />
       <div v-else class="overflow-x-auto">
         <table class="w-full text-sm">
@@ -212,7 +212,7 @@ const handleReset = async () => {
             <tr v-if="filtered.length === 0">
               <td colspan="6" class="px-5 py-14 text-center text-muted-foreground">No accounts found.</td>
             </tr>
-            <tr v-for="m in filtered" :key="m.id" class="transition-[box-shadow,background-color] duration-150 hover:bg-muted/40 hover:shadow-[0_5px_12px_-5px_rgba(17,24,39,0.55)]">
+            <tr v-for="m in filtered" :key="m.id" class="transition-colors duration-150 hover:bg-muted/50">
               <td class="px-5 py-3.5">
                 <div class="flex items-center gap-2.5">
                   <div class="w-7 h-7 rounded-full bg-primary-light flex items-center justify-center text-primary text-xs font-bold flex-shrink-0">{{ m.fullName.charAt(0) }}</div>

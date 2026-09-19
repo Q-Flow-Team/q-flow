@@ -18,6 +18,12 @@ export default defineNuxtConfig({
     head: {
       title: 'Q-Flow Queue Management',
       htmlAttrs: { lang: 'en' },
+      script: [
+        {
+          innerHTML:
+            "(function(){try{var t=localStorage.getItem('qflow-theme');if(t!=='dark'&&t!=='light'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}if(t==='dark'){document.documentElement.classList.add('dark')}}catch(e){}})();",
+        },
+      ],
       link: [
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },

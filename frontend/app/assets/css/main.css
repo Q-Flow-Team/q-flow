@@ -1,40 +1,103 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+
+  /* Brand */
   --color-primary: #2563eb;
   --color-primary-hover: #1d4ed8;
   --color-primary-active: #1e40af;
   --color-primary-light: #dbeafe;
   --color-primary-lighter: #eff6ff;
-  --color-primary-border: #93c5fd;
+  --color-primary-border: #bfdbfe;
   --color-primary-dark-text: #1e40af;
 
-  --color-foreground: #111827;
-  --color-muted-foreground: #6b7280;
+  /* Surfaces & text */
+  --color-foreground: #0f172a;
+  --color-muted-foreground: #64748b;
   --color-muted: #f1f5f9;
-  --color-border: #e5e7eb;
+  --color-border: #e2e8f0;
   --color-card: #ffffff;
-  --color-input-bg: #f9fafb;
-  --color-bg-page: #f8fafc;
-  --color-bg-customer: #f0f4f8;
+  --color-sidebar: #ffffff;
+  --color-input-bg: #f8fafc;
+  --color-bg-page: #f6f8fb;
+  --color-bg-customer: #eef2f7;
   --color-bg-called: #2563eb;
-  --color-bg-ticket: #f0f7ff;
+  --color-bg-ticket: #eff6ff;
 
+  /* Semantic */
   --color-danger: #dc2626;
   --color-danger-hover: #b91c1c;
   --color-danger-active: #991b1b;
   --color-danger-light: #fef2f2;
-  --color-danger-border: #fca5a5;
-  --color-danger-light-border: #fecaca;
+  --color-danger-border: #fecaca;
+  --color-danger-light-border: #fee2e2;
   --color-success: #16a34a;
   --color-success-light: #dcfce7;
-  --color-success-check: #86efac;
+  --color-success-check: #22c55e;
+  --color-warning: #d97706;
+  --color-warning-light: #fef3c7;
 
-  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  /* Elevation */
+  --shadow-card: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06);
+  --shadow-card-hover: 0 14px 30px -12px rgb(15 23 42 / 0.22), 0 5px 12px -6px rgb(15 23 42 / 0.08);
+  --shadow-pop: 0 18px 44px -14px rgb(15 23 42 / 0.26), 0 7px 18px -7px rgb(15 23 42 / 0.12);
+  --shadow-glow: 0 10px 26px -10px rgb(37 99 235 / 0.6);
+}
+
+:root {
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --color-primary: #3b82f6;
+  --color-primary-hover: #60a5fa;
+  --color-primary-active: #2563eb;
+  --color-primary-light: rgb(59 130 246 / 0.16);
+  --color-primary-lighter: rgb(59 130 246 / 0.09);
+  --color-primary-border: rgb(59 130 246 / 0.35);
+  --color-primary-dark-text: #93c5fd;
+
+  --color-foreground: #e8edf5;
+  --color-muted-foreground: #94a3b8;
+  --color-muted: #1e293b;
+  --color-border: #24324a;
+  --color-card: #0e1729;
+  --color-sidebar: #0b1222;
+  --color-input-bg: #172033;
+  --color-bg-page: #070c17;
+  --color-bg-customer: #070c17;
+  --color-bg-called: #3b82f6;
+  --color-bg-ticket: #0f1e33;
+
+  --color-danger: #f87171;
+  --color-danger-hover: #ef4444;
+  --color-danger-active: #dc2626;
+  --color-danger-light: rgb(248 113 113 / 0.12);
+  --color-danger-border: rgb(248 113 113 / 0.35);
+  --color-danger-light-border: rgb(248 113 113 / 0.25);
+  --color-success: #4ade80;
+  --color-success-light: rgb(74 222 128 / 0.14);
+  --color-success-check: #4ade80;
+  --color-warning: #fbbf24;
+  --color-warning-light: rgb(251 191 36 / 0.14);
+
+  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.4), 0 1px 3px 0 rgb(0 0 0 / 0.5);
+  --shadow-card-hover: 0 18px 34px -14px rgb(0 0 0 / 0.65), 0 6px 16px -6px rgb(0 0 0 / 0.5);
+  --shadow-pop: 0 22px 52px -18px rgb(0 0 0 / 0.75), 0 9px 22px -8px rgb(0 0 0 / 0.6);
+  --shadow-glow: 0 10px 26px -10px rgb(59 130 246 / 0.7);
 }
 
 * {
   font-family: var(--font-sans);
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
@@ -42,4 +105,48 @@ body {
   background: var(--color-bg-page);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+::selection {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+/* Themed, unobtrusive scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted-foreground);
+  background-clip: content-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Loader2, UserCheck, Play, CheckCircle2, SkipForward } from 'lucide-vue-next'
+import { Loader2, UserCheck, Play, CheckCircle2, SkipForward, Users, MonitorPlay } from 'lucide-vue-next'
 
 defineEmits<{ goToQueue: []; goToTicket: [id: string] }>()
 
@@ -91,13 +91,14 @@ const recent = computed(() => sessionTickets.value.slice(0, 6))
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      <StatCard label="Waiting" :value="waiting" sub="in queue" />
-      <StatCard label="At Counter" :value="activeTicket ? 1 : 0" sub="being served" />
-      <StatCard label="Served" :value="servedCount" sub="this session" />
+      <StatCard label="Waiting" :value="waiting" sub="in queue" :icon="Users" tone="primary" />
+      <StatCard label="At Counter" :value="activeTicket ? 1 : 0" sub="being served" :icon="MonitorPlay" tone="warning" />
+      <StatCard label="Served" :value="servedCount" sub="this session" :icon="CheckCircle2" tone="success" />
     </div>
 
-    <div class="bg-card border border-border rounded-xl p-6">
-      <div class="flex items-start justify-between mb-5 gap-4">
+    <div class="relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-card">
+      <div class="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-primary/10 blur-3xl" aria-hidden="true" />
+      <div class="relative flex items-start justify-between mb-5 gap-4">
         <div>
           <h3 class="font-bold text-foreground">Now Calling</h3>
           <p v-if="activeTicket" class="text-sm text-muted-foreground mt-0.5">
@@ -158,7 +159,7 @@ const recent = computed(() => sessionTickets.value.slice(0, 6))
       <p v-if="error" class="text-xs text-danger mt-3">{{ error }}</p>
     </div>
 
-    <div class="bg-card border border-border rounded-xl overflow-hidden">
+    <div class="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
       <div class="flex items-center justify-between px-5 py-3.5 border-b border-border">
         <h3 class="text-sm font-bold text-foreground">Session Activity</h3>
         <button @click="$emit('goToQueue')" class="text-sm text-primary hover:text-primary-hover font-bold flex items-center gap-1">
@@ -176,7 +177,7 @@ const recent = computed(() => sessionTickets.value.slice(0, 6))
           v-for="t in recent"
           :key="t.id"
           @click="$emit('goToTicket', t.id)"
-          class="w-full flex items-center justify-between px-5 py-3.5 transition-[box-shadow,background-color] duration-150 hover:bg-muted/40 hover:shadow-[0_5px_12px_-5px_rgba(17,24,39,0.55)] text-left"
+          class="w-full flex items-center justify-between px-5 py-3.5 transition-colors duration-150 hover:bg-muted/50 text-left"
         >
           <div class="flex items-center gap-3 min-w-0">
             <span class="text-sm font-extrabold text-primary w-16 tabular-nums flex-shrink-0">{{ t.ticketNumber }}</span>

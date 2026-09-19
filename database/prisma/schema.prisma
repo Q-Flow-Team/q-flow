@@ -36,6 +36,7 @@ enum NotificationTrigger {
   THRESHOLD_ALERT
   COUNTER_CALL
   AUTO_CANCELLED
+  CANCELLED
 }
 
 model User {

@@ -136,7 +136,7 @@ const handlePrint = () => {
       </button>
     </div>
 
-    <div v-if="loading" class="bg-card border border-border rounded-xl p-6 space-y-5">
+    <div v-if="loading" class="bg-card border border-border rounded-2xl shadow-card p-6 space-y-5">
       <div class="flex flex-col items-center justify-center py-8">
         <div class="p-5 bg-white border border-border rounded-2xl shadow-sm inline-block mb-4">
           <Skeleton class="w-54 h-54" />
@@ -152,7 +152,7 @@ const handlePrint = () => {
     </div>
 
     <div v-else-if="qr" class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-      <div class="bg-card border border-border rounded-xl p-6 flex flex-col items-center justify-center">
+      <div class="bg-card border border-border rounded-2xl shadow-card p-6 flex flex-col items-center justify-center">
         <div v-if="qr.pngDataUrl" class="p-5 bg-white border border-border rounded-2xl shadow-sm inline-block">
           <img :src="qr.pngDataUrl" alt="Q-Flow check-in QR code" width="216" height="216" class="block w-54 h-54" style="image-rendering: pixelated" />
         </div>
@@ -161,7 +161,7 @@ const handlePrint = () => {
         <p class="text-xs text-muted-foreground mt-0.5">Scan to join the queue</p>
       </div>
 
-      <div class="bg-card border border-border rounded-xl p-6">
+      <div class="bg-card border border-border rounded-2xl shadow-card p-6">
         <div class="space-y-1.5 mb-6">
           <label class="block text-sm font-semibold text-foreground">Site Name</label>
           <input

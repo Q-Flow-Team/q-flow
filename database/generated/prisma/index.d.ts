@@ -72,7 +72,8 @@ export const NotificationTrigger: {
   INITIAL_JOIN: 'INITIAL_JOIN',
   THRESHOLD_ALERT: 'THRESHOLD_ALERT',
   COUNTER_CALL: 'COUNTER_CALL',
-  AUTO_CANCELLED: 'AUTO_CANCELLED'
+  AUTO_CANCELLED: 'AUTO_CANCELLED',
+  CANCELLED: 'CANCELLED'
 };
 
 export type NotificationTrigger = (typeof NotificationTrigger)[keyof typeof NotificationTrigger]
