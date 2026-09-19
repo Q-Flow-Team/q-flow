@@ -1,158 +1,329 @@
 <script setup lang="ts">
-import { useStateStore } from '~/composables/useStateStore'
-import type { StaffMember } from '~/composables/useStateStore'
+import { Loader2, Plus, KeyRound, X, Search, ShieldCheck, UserRound } from 'lucide-vue-next'
+import { apiGet, apiPost } from '~/utils/api'
+import { roleLabel, formatDate } from '~/utils/format'
+import { trim, isValidEmail, isValidName, isValidEmployeeId, passwordIssues, emailMessage, nameMessage } from '~/utils/validate'
 
-const state = useStateStore()
 const showToast = inject<(msg: string) => void>('showToast', () => {})
-const staffList = computed(() => state.staffList)
-const counters = computed(() => state.counters)
 
-const showForm = ref(false)
-const search = ref('')
-const deleteTarget = ref<StaffMember | null>(null)
-const form = ref({ name: '', email: '', role: 'Counter Staff' as 'Counter Staff' | 'Admin', counter: '', active: true })
-
-const filtered = computed(() => staffList.value.filter(s =>
-  !search.value || s.name.toLowerCase().includes(search.value.toLowerCase()) || s.email.toLowerCase().includes(search.value.toLowerCase())
-))
-
-const handleSubmit = () => {
-  if (!form.value.name || !form.value.email) return
-  state.addStaff(form.value)
-  showToast(`Account created for ${form.value.name}`)
-  form.value = { name: '', email: '', role: 'Counter Staff', counter: '', active: true }
-  showForm.value = false
+interface AdminUser {
+  id: string
+  email: string
+  employeeId: string
+  fullName: string
+  role: 'ADMIN' | 'COUNTER_STAFF'
+  createdAt: string
+  activeCounter: { id: string; counterNumber: number; counterName: string; isActive: boolean } | null
 }
 
-const handleDelete = () => {
-  if (deleteTarget.value) {
-    state.removeStaff(deleteTarget.value.id)
-    showToast(`${deleteTarget.value.name} removed`)
-    deleteTarget.value = null
+const users = ref<AdminUser[]>([])
+const loading = ref(true)
+const errorMsg = ref('')
+const search = ref('')
+const showForm = ref(false)
+const creating = ref(false)
+const form = ref({
+  email: '',
+  employeeId: '',
+  fullName: '',
+  password: '',
+  role: 'COUNTER_STAFF' as 'ADMIN' | 'COUNTER_STAFF',
+})
+const formErrors = ref({
+  email: '',
+  employeeId: '',
+  fullName: '',
+  password: '',
+})
+const touched = ref<Record<string, boolean>>({})
+
+const validateForm = () => {
+  const errors = { email: '', employeeId: '', fullName: '', password: '' }
+  const ev = trim(form.value.email)
+  if (!ev) errors.email = 'Email is required.'
+  else if (!isValidEmail(ev)) errors.email = emailMessage(ev)
+  if (!trim(form.value.fullName)) errors.fullName = 'Full name is required.'
+  else if (!isValidName(form.value.fullName)) errors.fullName = nameMessage(form.value.fullName)
+  if (!isValidEmployeeId(form.value.employeeId)) errors.employeeId = 'Employee ID must be 2–20 characters using letters, numbers, dashes or underscores.'
+  if (!form.value.password) errors.password = 'Temporary password is required.'
+  else errors.password = passwordIssues(form.value.password)[0] || ''
+  formErrors.value = errors
+  return !Object.values(errors).some(Boolean)
+}
+
+const validateField = (field: 'email' | 'employeeId' | 'fullName' | 'password') => {
+  touched.value[field] = true
+  validateForm()
+}
+
+const resetIssues = computed(() => (newPassword.value ? passwordIssues(newPassword.value) : []))
+
+const createError = ref('')
+
+const resetTarget = ref<AdminUser | null>(null)
+const newPassword = ref('')
+const resetting = ref(false)
+
+const load = async () => {
+  loading.value = true
+  try {
+    const res = await apiGet<{ users: AdminUser[] }>('/admin/users')
+    users.value = res.users || []
+    errorMsg.value = ''
+  } catch (err: any) {
+    errorMsg.value = err?.message || 'Failed to load users.'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(load)
+
+const filtered = computed(() => {
+  const s = search.value.toLowerCase()
+  return users.value.filter(
+    (u) =>
+      !s ||
+      u.fullName.toLowerCase().includes(s) ||
+      u.email.toLowerCase().includes(s) ||
+      u.employeeId.toLowerCase().includes(s),
+  )
+})
+
+const handleSubmit = async () => {
+  createError.value = ''
+  touched.value = { email: true, employeeId: true, fullName: true, password: true }
+  if (!validateForm()) return
+  creating.value = true
+  try {
+    const res = await apiPost<{ message: string; user: AdminUser }>('/admin/users', {
+      email: form.value.email.trim().toLowerCase(),
+      employeeId: form.value.employeeId.trim() || undefined,
+      fullName: form.value.fullName.trim(),
+      password: form.value.password,
+      role: form.value.role,
+    })
+    users.value = [...users.value, { ...res.user, activeCounter: null }]
+    showToast(`Account created for ${form.value.fullName}`)
+    form.value = { email: '', employeeId: '', fullName: '', password: '', role: 'COUNTER_STAFF' }
+    showForm.value = false
+  } catch (err: any) {
+    createError.value = err?.message || 'Failed to create account'
+    showToast(createError.value)
+  } finally {
+    creating.value = false
+  }
+}
+
+const openReset = (u: AdminUser) => {
+  resetTarget.value = u
+  newPassword.value = ''
+}
+
+const handleReset = async () => {
+  if (!resetTarget.value || resetIssues.value.length > 0) return
+  resetting.value = true
+  try {
+    await apiPost(`/admin/users/${resetTarget.value.id}/reset-password`, {
+      newPassword: newPassword.value,
+    })
+    showToast(`Password reset for ${resetTarget.value.employeeId}`)
+    resetTarget.value = null
+    newPassword.value = ''
+  } catch (err: any) {
+    showToast(err?.message || 'Failed to reset password')
+  } finally {
+    resetting.value = false
   }
 }
 </script>
 
 <template>
   <div class="space-y-5">
-    <ConfirmModal
-      v-if="deleteTarget"
-      title="Remove Staff Member?"
-      :body="`Are you sure you want to remove ${deleteTarget.name}? This will permanently delete their account and cannot be undone.`"
-      confirmLabel="Yes, Remove"
-      @confirm="handleDelete"
-      @cancel="deleteTarget = null"
-    />
+    <!-- Reset password modal -->
+    <div
+      v-if="resetTarget"
+      class="fixed inset-0 z-[60] overflow-y-auto bg-black/60 backdrop-blur-[2px]"
+      @click.self="resetTarget = null"
+    >
+      <div class="flex min-h-full items-center justify-center p-4">
+        <div class="card relative w-full max-w-sm p-6 shadow-pop">
+          <div class="mb-4 flex items-start justify-between">
+            <div>
+              <h3 class="text-base font-bold text-foreground">Reset Password</h3>
+              <p class="mt-0.5 text-xs text-muted-foreground">{{ resetTarget.fullName }} · {{ resetTarget.employeeId }}</p>
+            </div>
+            <button class="cursor-pointer rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" @click="resetTarget = null">
+              <X class="h-4 w-4" />
+            </button>
+          </div>
+          <input
+            v-model="newPassword"
+            type="text"
+            autocomplete="new-password"
+            class="input"
+            :class="resetIssues.length > 0 && 'border-danger'"
+            placeholder="New password (min 8 chars, letter + number)"
+          />
+          <p
+            v-if="resetIssues.length > 0"
+            class="mt-1 text-xs text-danger"
+          >
+            {{ resetIssues[0] }}
+          </p>
+          <div class="mt-5 flex gap-3">
+            <button class="btn btn-md btn-outline flex-1" @click="resetTarget = null">Cancel</button>
+            <button
+              :disabled="resetIssues.length > 0 || resetting"
+              class="btn btn-md btn-primary flex-1"
+              @click="handleReset"
+            >
+              <Loader2 v-if="resetting" class="h-4 w-4 animate-spin" />
+              Reset
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
+    <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <h2 class="text-xl font-bold text-foreground">Staff</h2>
-        <p class="text-sm text-muted-foreground mt-0.5">{{ staffList.length }} accounts</p>
+        <h2 class="text-xl font-extrabold tracking-tight text-foreground">Staff</h2>
       </div>
-      <button class="inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-150 bg-primary text-white hover:bg-primary-hover active:bg-primary-active px-3 py-1.5 text-xs" @click="showForm = !showForm">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-        </svg>
+      <button class="btn btn-sm btn-primary" @click="showForm = true">
+        <Plus class="h-4 w-4" />
         Create Account
       </button>
     </div>
 
-    <div v-if="showForm" class="bg-card border border-border rounded-xl p-6">
-      <h3 class="text-sm font-bold text-foreground mb-5">New Staff Account</h3>
-      <form @submit.prevent="handleSubmit">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-          <div class="space-y-1.5">
-            <label class="block text-sm font-semibold text-foreground">Full Name</label>
-            <input v-model="form.name" class="w-full px-3 py-2.5 rounded-lg border border-border bg-input-bg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm" placeholder="Enter full name" required />
+    <!-- Create account modal -->
+    <div
+      v-if="showForm"
+      class="fixed inset-0 z-[60] overflow-y-auto bg-black/60 backdrop-blur-[2px]"
+      @click.self="showForm = false"
+    >
+      <div class="flex min-h-full items-center justify-center p-4">
+        <div class="card relative w-full max-w-xl p-6 shadow-pop">
+          <div class="mb-5 flex items-start justify-between">
+            <div>
+              <h3 class="text-base font-bold text-foreground">New Staff Account</h3>
+              <p class="mt-0.5 text-xs text-muted-foreground">Create an account for a counter staff member or admin.</p>
+            </div>
+            <button class="cursor-pointer rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" @click="showForm = false">
+              <X class="h-4 w-4" />
+            </button>
           </div>
-          <div class="space-y-1.5">
-            <label class="block text-sm font-semibold text-foreground">Email Address</label>
-            <input v-model="form.email" type="email" class="w-full px-3 py-2.5 rounded-lg border border-border bg-input-bg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm" placeholder="staff@branch.ae" required />
-          </div>
-          <div class="space-y-1.5">
-            <label class="block text-sm font-semibold text-foreground">Role</label>
-            <select v-model="form.role" class="w-full px-3 py-2.5 rounded-lg border border-border bg-input-bg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-              <option>Counter Staff</option>
-              <option>Admin</option>
-            </select>
-          </div>
-          <div class="space-y-1.5">
-            <label class="block text-sm font-semibold text-foreground">Counter Assignment</label>
-            <select v-model="form.counter" class="w-full px-3 py-2.5 rounded-lg border border-border bg-input-bg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-              <option value="">Unassigned</option>
-              <option v-for="c in counters" :key="c.id" :value="c.name">{{ c.name }}</option>
-            </select>
-          </div>
+          <form @submit.prevent="handleSubmit">
+            <div class="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label class="label" for="emp-email">Email</label>
+                <input id="emp-email" v-model="form.email" type="email" autocomplete="email" class="input" :class="touched.email && formErrors.email && 'border-danger'" placeholder="e.g. staff@qflow.com" @blur="validateField('email')" @input="touched.email && validateField('email')" />
+                <p v-if="touched.email && formErrors.email" class="mt-1 text-xs text-danger">{{ formErrors.email }}</p>
+              </div>
+              <div>
+                <label class="label" for="full-name">Full Name</label>
+                <input id="full-name" v-model="form.fullName" autocomplete="name" class="input" :class="touched.fullName && formErrors.fullName && 'border-danger'" placeholder="Enter full name" @blur="validateField('fullName')" @input="touched.fullName && validateField('fullName')" />
+                <p v-if="touched.fullName && formErrors.fullName" class="mt-1 text-xs text-danger">{{ formErrors.fullName }}</p>
+              </div>
+              <div>
+                <label class="label" for="emp-id">Employee ID <span class="text-muted-foreground font-normal">(optional)</span></label>
+                <input id="emp-id" v-model="form.employeeId" autocomplete="off" class="input" :class="touched.employeeId && formErrors.employeeId && 'border-danger'" placeholder="e.g. STF-004" @blur="validateField('employeeId')" @input="touched.employeeId && validateField('employeeId')" />
+                <p v-if="touched.employeeId && formErrors.employeeId" class="mt-1 text-xs text-danger">{{ formErrors.employeeId }}</p>
+              </div>
+              <div>
+                <label class="label" for="temp-pass">Password</label>
+                <input id="temp-pass" v-model="form.password" type="text" autocomplete="new-password" class="input" :class="touched.password && formErrors.password && 'border-danger'" placeholder="Temporary password" @blur="validateField('password')" @input="touched.password && validateField('password')" />
+                <p v-if="touched.password && formErrors.password" class="mt-1 text-xs text-danger">{{ formErrors.password }}</p>
+              </div>
+              <div>
+                <label class="label" for="role">Role</label>
+                <select id="role" v-model="form.role" class="input">
+                  <option value="COUNTER_STAFF">Counter Staff</option>
+                  <option value="ADMIN">Admin</option>
+                </select>
+              </div>
+            </div>
+            <p v-if="createError" class="mb-3 text-xs text-danger">{{ createError }}</p>
+            <div class="flex flex-wrap gap-3">
+              <button type="submit" :disabled="creating" class="btn btn-md btn-primary">
+                <Loader2 v-if="creating" class="h-4 w-4 animate-spin" />
+                Create Account
+              </button>
+              <button type="button" class="btn btn-md btn-outline" @click="showForm = false">Cancel</button>
+            </div>
+          </form>
         </div>
-        <div class="flex gap-3">
-          <button type="submit" class="inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-150 bg-primary text-white hover:bg-primary-hover active:bg-primary-active px-3 py-1.5 text-xs">
-            Create Account
-          </button>
-          <button type="button" class="inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-150 bg-transparent text-foreground hover:bg-muted active:bg-border px-3 py-1.5 text-xs border border-border" @click="showForm = false">
-            Cancel
-          </button>
-        </div>
-      </form>
+      </div>
     </div>
 
-    <div class="relative">
-      <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-      </svg>
+    <!-- Search -->
+    <div class="relative sm:w-80">
+      <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <input
         v-model="search"
-        class="w-full pl-9 pr-4 py-2.5 rounded-lg border border-border bg-card text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+        class="input pl-9"
         placeholder="Search staff…"
       />
     </div>
 
-    <div class="bg-card border border-border rounded-xl overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="border-b border-border bg-muted/40">
-              <th class="text-left px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Name</th>
-              <th class="text-left px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider hidden sm:table-cell">Email</th>
-              <th class="text-left px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Role</th>
-              <th class="text-left px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider hidden md:table-cell">Counter</th>
-              <th class="text-left px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Status</th>
-              <th class="text-right px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Actions</th>
+    <p v-if="errorMsg" class="text-xs text-danger">{{ errorMsg }}</p>
+
+    <!-- Table -->
+    <div class="card overflow-hidden">
+      <SkeletonTable v-if="loading" :rows="6" :cols="5" />
+      <div v-else class="overflow-x-auto">
+        <table class="table-gmail w-full text-sm">
+          <thead class="bg-muted/40">
+            <tr class="border-b border-border">
+              <th class="th">Name</th>
+              <th class="th">Email</th>
+              <th class="th">Employee ID</th>
+              <th class="th">Role</th>
+              <th class="th">Counter</th>
+              <th class="th">Created</th>
+              <th class="th text-right">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-border">
-            <tr v-for="m in filtered" :key="m.id" class="transition-[box-shadow,background-color] duration-150 hover:bg-muted/40 hover:shadow-[0_5px_12px_-5px_rgba(17,24,39,0.55)]">
-              <td class="px-5 py-3.5">
-                <div class="flex items-center gap-2.5">
-                  <div class="w-7 h-7 rounded-full bg-primary-light flex items-center justify-center text-primary text-xs font-bold flex-shrink-0">{{ m.name.charAt(0) }}</div>
-                  <span class="font-semibold text-foreground">{{ m.name }}</span>
-                </div>
+            <tr v-if="filtered.length === 0">
+              <td colspan="7" class="px-5 py-14 text-center text-muted-foreground">No accounts found.</td>
+            </tr>
+            <tr v-for="m in filtered" :key="m.id">
+              <td class="td whitespace-nowrap">
+                <span class="block truncate font-semibold text-foreground">{{ m.fullName }}</span>
               </td>
-              <td class="px-5 py-3.5 text-muted-foreground hidden sm:table-cell">{{ m.email }}</td>
-              <td class="px-5 py-3.5">
-                <span :class="['inline-flex items-center px-2 py-0.5 rounded text-xs font-bold', m.role === 'Admin' ? 'bg-primary-light text-primary-dark-text' : 'bg-muted text-muted-foreground']">
-                  {{ m.role }}
+              <td class="td text-muted-foreground whitespace-nowrap">{{ m.email }}</td>
+              <td class="td text-muted-foreground whitespace-nowrap font-mono text-xs">{{ m.employeeId }}</td>
+              <td class="td whitespace-nowrap">
+                <span
+                  :class="[
+                    'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset ring-black/5 dark:ring-white/10',
+                    m.role === 'ADMIN' ? 'bg-warning-light text-warning' : 'bg-muted text-muted-foreground',
+                  ]"
+                >
+                  <ShieldCheck v-if="m.role === 'ADMIN'" class="h-3 w-3" />
+                  <UserRound v-else class="h-3 w-3" />
+                  {{ roleLabel(m.role) }}
                 </span>
               </td>
-              <td class="px-5 py-3.5 text-muted-foreground hidden md:table-cell">{{ m.counter || '—' }}</td>
-              <td class="px-5 py-3.5">
-                <span :class="['inline-flex items-center gap-1.5 text-xs font-bold', m.active ? 'text-success' : 'text-muted-foreground']">
-                  <span :class="['w-1.5 h-1.5 rounded-full flex-shrink-0', m.active ? 'bg-success' : 'bg-muted-foreground']" />
-                  {{ m.active ? 'Active' : 'Inactive' }}
+              <td class="td text-muted-foreground whitespace-nowrap">
+                <span v-if="m.activeCounter">
+                  {{ m.activeCounter.counterName }}
+                  <span class="font-bold text-foreground tabular-nums">#{{ m.activeCounter.counterNumber }}</span>
                 </span>
+                <span v-else>Unassigned</span>
               </td>
-              <td class="px-5 py-3.5 text-right">
-                <div class="flex items-center justify-end gap-1">
-                  <button class="p-1.5 rounded hover:bg-muted transition-colors" title="Edit">
-                    <svg class="w-3.5 h-3.5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                  </button>
-                  <button class="p-1.5 rounded hover:bg-danger-light transition-colors group" title="Remove" @click="deleteTarget = m">
-                    <svg class="w-3.5 h-3.5 text-muted-foreground group-hover:text-danger transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </div>
+              <td class="td text-muted-foreground whitespace-nowrap tabular-nums">{{ formatDate(m.createdAt) }}</td>
+              <td class="td text-right whitespace-nowrap">
+                <button
+                  class="inline-flex cursor-pointer items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-gray-900"
+                  title="Reset password"
+                  @click="openReset(m)"
+                >
+                  <KeyRound class="h-3.5 w-3.5" />
+                  Reset
+                </button>
               </td>
             </tr>
           </tbody>

@@ -528,19 +528,7 @@ q-flow/
 
 ├── frontend/
 
-│   └── # Nuxt 4 application
-
-│
-
-├── backend/
-
-│   └── # Backend/API service
-
-│
-
-├── database/
-
-│   └── # Database schemas and migrations
+│   └── # Nuxt 4 application (frontend-only, in-browser mock API)
 
 │
 

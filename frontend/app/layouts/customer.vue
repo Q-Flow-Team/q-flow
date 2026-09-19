@@ -3,8 +3,5 @@
     <div class="w-full max-w-sm bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
       <slot />
     </div>
-    <NuxtLink to="/" class="mt-4 text-xs text-muted-foreground hover:text-foreground transition-colors">
-      &larr; Back to demo
-    </NuxtLink>
   </div>
 </template>

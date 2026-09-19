@@ -1,82 +1,181 @@
 <script setup lang="ts">
-import { useStateStore } from '~/composables/useStateStore'
+import { Loader2, UserCheck, Search } from 'lucide-vue-next'
+import { formatTime, channelLabel } from '~/utils/format'
 
-defineEmits<{ selectTicket: [id: string] }>()
+const emit = defineEmits<{ selectTicket: [id: string] }>()
 
-const state = useStateStore()
-const tickets = computed(() => state.tickets)
+const { overview, loading, callNext, serveTicket, trackTicket, error } = useStaffSession()
+const showToast = inject<(msg: string) => void>('showToast', () => {})
 const search = ref('')
-const filter = ref<string>('All')
-const statuses = ['All', 'Waiting', 'Near Turn', 'Now Serving', 'Skipped', 'Served']
+const filter = ref('')
+const calling = ref(false)
+const servingId = ref<string | null>(null)
 
-const filtered = computed(() => tickets.value.filter(t => {
+const activeTicket = computed(() => overview.value?.activeTicket ?? null)
+const waitingCount = computed(() => overview.value?.waitingCount ?? 0)
+
+const rows = computed(() => {
+  const list = [...(overview.value?.waiting ?? [])]
   const s = search.value.toLowerCase()
-  return (!s || t.customer.toLowerCase().includes(s) || String(t.number).includes(s))
-    && (filter.value === 'All' || t.status === filter.value)
-}))
+  return list.filter((t) => {
+    const matchesSearch =
+      !s || t.customerName.toLowerCase().includes(s) || t.ticketNumber.toLowerCase().includes(s)
+    const matchesFilter = !filter.value || t.status === filter.value
+    return matchesSearch && matchesFilter
+  })
+})
+
+const handleCallNext = async () => {
+  calling.value = true
+  try {
+    const ticket = await callNext()
+    if (ticket) showToast(`Calling ${ticket.ticketNumber} — ${ticket.customerName}`)
+  } catch (err: any) {
+    showToast(err?.message || 'Failed to call next customer')
+  } finally {
+    calling.value = false
+  }
+}
+
+const handleServe = async (t: any) => {
+  servingId.value = t.id
+  try {
+    const ticket = await serveTicket(t.id)
+    if (ticket) showToast(`${ticket.ticketNumber} served — ${ticket.customerName}`)
+  } catch (err: any) {
+    showToast(err?.message || 'Failed to serve this customer')
+  } finally {
+    servingId.value = null
+  }
+}
+
+const handleSelect = (t: any) => {
+  trackTicket(t)
+  emit('selectTicket', t.id)
+}
 </script>
 
 <template>
   <div class="space-y-5">
-    <div>
-      <h2 class="text-xl font-bold text-foreground">Queue</h2>
-      <p class="text-sm text-muted-foreground mt-0.5">{{ tickets.length }} tickets today</p>
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h2 class="text-xl font-extrabold tracking-tight text-foreground">Queue</h2>
+        <p class="mt-0.5 text-sm text-muted-foreground">
+          <span class="font-bold text-foreground tabular-nums">{{ waitingCount }}</span>
+          {{ waitingCount === 1 ? 'customer' : 'customers' }} waiting
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button
+          :disabled="calling || waitingCount === 0"
+          class="btn btn-sm btn-primary"
+          @click="handleCallNext"
+        >
+          <Loader2 v-if="calling" class="h-3.5 w-3.5 animate-spin" />
+          <UserCheck v-else class="h-3.5 w-3.5" />
+          {{ calling ? 'Calling…' : 'Call Next' }}
+        </button>
+      </div>
     </div>
-    <div class="flex flex-col sm:flex-row gap-3">
+
+    <div
+      v-if="activeTicket"
+      class="flex items-center justify-between gap-3 rounded-2xl border border-primary-border bg-primary-lighter px-4 py-3.5"
+    >
+      <div class="flex min-w-0 items-center gap-3">
+        <span class="grid h-9 w-9 flex-shrink-0 place-items-center rounded-xl bg-primary text-white shadow-glow">
+          <UserCheck class="h-4 w-4" />
+        </span>
+        <div class="min-w-0">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-primary">At your counter</p>
+          <p class="truncate text-sm font-extrabold text-foreground sm:text-base">
+            {{ activeTicket.ticketNumber }} &middot; {{ activeTicket.customerName }}
+          </p>
+        </div>
+      </div>
+      <StatusPill :status="activeTicket.status" />
+    </div>
+
+    <div class="flex flex-col gap-3 sm:flex-row">
       <div class="relative flex-1">
-        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
+        <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
           v-model="search"
-          class="w-full pl-9 pr-4 py-2.5 rounded-lg border border-border bg-card text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+          class="input pl-9"
           placeholder="Search by name or ticket number…"
         />
       </div>
-      <select
-        v-model="filter"
-        class="px-3 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-      >
-        <option v-for="s in statuses" :key="s">{{ s }}</option>
+      <select v-model="filter" class="input sm:w-44">
+        <option value="">All Statuses</option>
+        <option value="WAITING">Waiting</option>
+        <option value="CALLED">Called</option>
       </select>
     </div>
-    <div class="bg-card border border-border rounded-xl overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="border-b border-border bg-muted/40">
-              <th class="text-left px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">#</th>
-              <th class="text-left px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Customer</th>
-              <th class="text-left px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider hidden sm:table-cell">Service</th>
-              <th class="text-left px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Status</th>
-              <th class="text-left px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider hidden md:table-cell">Joined</th>
-              <th class="text-left px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider hidden lg:table-cell">Wait</th>
-              <th class="text-right px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider"></th>
+
+    <p v-if="error" class="text-xs text-danger">{{ error }}</p>
+
+    <div class="card overflow-hidden">
+      <SkeletonTable v-if="loading && !overview" :rows="7" :cols="5" />
+      <div v-else class="overflow-x-auto">
+        <table class="table-gmail w-full text-sm">
+          <thead class="bg-muted/40">
+            <tr class="border-b border-border">
+              <th class="th">Ticket</th>
+              <th class="th">Customer</th>
+              <th class="th hidden sm:table-cell">Channel</th>
+              <th class="th">Position</th>
+              <th class="th hidden md:table-cell">Joined</th>
+              <th class="th text-right"></th>
             </tr>
           </thead>
           <tbody class="divide-y divide-border">
-            <tr v-if="filtered.length === 0">
-              <td colspan="7" class="px-5 py-14 text-center text-muted-foreground">No customers in queue right now.</td>
+            <tr v-if="rows.length === 0">
+              <td colspan="6" class="px-5 py-14 text-center text-muted-foreground">
+                <p class="text-sm font-semibold">
+                  {{ waitingCount > 0 ? 'No tickets match your filters.' : 'No customers in queue right now.' }}
+                </p>
+                <p class="mt-1 text-xs">
+                  {{ waitingCount > 0 ? 'Try clearing the search or status filter.' : 'Share the check-in QR code so customers can join.' }}
+                </p>
+              </td>
             </tr>
             <tr
-              v-for="t in filtered"
+              v-for="t in rows"
               :key="t.id"
-              class="transition-[box-shadow,background-color] duration-150 hover:bg-muted/40 hover:shadow-[0_5px_12px_-5px_rgba(17,24,39,0.55)] cursor-pointer"
-              @click="$emit('selectTicket', t.id)"
+              class="cursor-pointer"
+              @click="handleSelect(t)"
             >
-              <td class="px-5 py-3.5 font-extrabold text-primary tabular-nums">#{{ t.number }}</td>
-              <td class="px-5 py-3.5">
-                <p class="font-semibold text-foreground">{{ t.customer }}</p>
-                <p class="text-xs text-muted-foreground">{{ t.phone }}</p>
+              <td class="td font-extrabold text-gray-900 tabular-nums">{{ t.ticketNumber }}</td>
+              <td class="td">
+                <p class="truncate font-semibold text-foreground">{{ t.customerName }}</p>
+                <p class="text-xs text-muted-foreground">{{ t.phoneNumber }}</p>
               </td>
-              <td class="px-5 py-3.5 text-muted-foreground hidden sm:table-cell">{{ t.service }}</td>
-              <td class="px-5 py-3.5"><StatusPill :status="t.status" /></td>
-              <td class="px-5 py-3.5 text-muted-foreground hidden md:table-cell tabular-nums">{{ t.joined }}</td>
-              <td class="px-5 py-3.5 text-muted-foreground hidden lg:table-cell">
-                {{ t.status === 'Waiting' || t.status === 'Near Turn' ? `~${t.waitMin} min` : '—' }}
+              <td class="td text-muted-foreground hidden sm:table-cell">{{ channelLabel(t.preferredChannel) }}</td>
+              <td class="td text-muted-foreground tabular-nums">
+                <span
+                  :class="[
+                    'inline-flex h-6 min-w-6 items-center justify-center px-1.5 text-xs font-bold',
+                    t.currentPosition === 1 ? 'bg-gray-900 text-white' : 'bg-muted text-muted-foreground',
+                  ]"
+                >
+                  {{ t.currentPosition > 0 ? t.currentPosition : '0' }}
+                </span>
               </td>
-              <td class="px-5 py-3.5 text-right">
-                <span class="text-primary text-xs font-bold hover:underline">Details</span>
+              <td class="td text-muted-foreground hidden md:table-cell tabular-nums">{{ formatTime(t.joinedAt) }}</td>
+              <td class="td text-right">
+                <div class="inline-flex items-center gap-2">
+                  <button
+                    v-if="t.currentPosition === 1 && t.status === 'WAITING'"
+                    :disabled="calling || servingId !== null"
+                    class="btn btn-sm !px-2.5 !py-1"
+                    @click.stop="handleServe(t)"
+                  >
+                    <Loader2 v-if="servingId === t.id" class="h-3 w-3 animate-spin" />
+                    <UserCheck v-else class="h-3.5 w-3.5" />
+                    {{ servingId === t.id ? 'Serving…' : 'Serve' }}
+                  </button>
+                  <span class="text-xs font-bold text-gray-900">Details</span>
+                </div>
               </td>
             </tr>
           </tbody>

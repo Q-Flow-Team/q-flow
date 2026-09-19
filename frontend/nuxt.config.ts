@@ -6,6 +6,15 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   ssr: true,
   css: ['~/assets/css/main.css'],
+  runtimeConfig: {
+    public: {
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || '',
+      useMock: true,
+    },
+  },
+  routeRules: {
+    '/customer/join': { redirect: '/', redirectCode: 302 },
+  },
   app: {
     head: {
       title: 'Q-Flow Queue Management',

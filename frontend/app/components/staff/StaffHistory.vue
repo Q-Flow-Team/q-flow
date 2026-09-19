@@ -1,93 +1,117 @@
 <script setup lang="ts">
-import { useStateStore } from '~/composables/useStateStore'
+import { ChevronLeft, ChevronRight, Inbox } from 'lucide-vue-next'
+import { formatTime, formatDate } from '~/utils/format'
 
-const state = useStateStore()
-const from = ref('2024-01-15')
-const to = ref('2024-01-15')
-const filter = ref('All')
+const { history, historyLoading, fetchHistory } = useStaffSession()
+const filter = ref('')
 const page = ref(1)
-const PER = 5
-const statuses = ['All', 'Served', 'Skipped']
+const PER = 8
 
-const filtered = computed(() => state.tickets.filter(t =>
-  (t.status === 'Served' || t.status === 'Skipped') && (filter.value === 'All' || t.status === filter.value)
-))
+const finalStatuses = ['SERVED', 'SKIPPED', 'CANCELLED', 'AUTO_CANCELLED']
+
+const filtered = computed(() =>
+  history.value
+    .filter((t) => finalStatuses.includes(t.status))
+    .filter((t) => !filter.value || t.status === filter.value),
+)
+
 const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / PER)))
 const paginated = computed(() => filtered.value.slice((page.value - 1) * PER, page.value * PER))
+
+watch(filter, () => (page.value = 1))
+
+onMounted(() => fetchHistory())
 </script>
 
 <template>
   <div class="space-y-5">
-    <div>
-      <h2 class="text-xl font-bold text-foreground">History</h2>
-      <p class="text-sm text-muted-foreground mt-0.5">Past tickets for your counter</p>
-    </div>
-    <div class="flex flex-wrap gap-3 items-center">
-      <div class="relative">
-        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-        <input type="date" v-model="from" class="pl-9 pr-4 py-2.5 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h2 class="text-xl font-extrabold tracking-tight text-foreground">History</h2>
+        <p class="mt-0.5 text-sm text-muted-foreground">
+          <span class="font-bold text-foreground tabular-nums">{{ filtered.length }}</span> tickets handled
+        </p>
       </div>
-      <span class="text-sm text-muted-foreground">to</span>
-      <div class="relative">
-        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-        <input type="date" v-model="to" class="pl-9 pr-4 py-2.5 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+      <div class="flex items-center gap-2">
+        <select v-model="filter" class="input sm:w-44">
+          <option value="">All statuses</option>
+          <option value="SERVED">Served</option>
+          <option value="SKIPPED">Skipped</option>
+          <option value="CANCELLED">Cancelled</option>
+          <option value="AUTO_CANCELLED">Auto Cancelled</option>
+        </select>
       </div>
-      <select v-model="filter" @change="page = 1" class="px-3 py-2.5 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-        <option v-for="s in statuses" :key="s">{{ s }}</option>
-      </select>
     </div>
-    <div class="bg-card border border-border rounded-xl overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="border-b border-border bg-muted/40">
-              <th class="text-left px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">#</th>
-              <th class="text-left px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Customer</th>
-              <th class="text-left px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider hidden sm:table-cell">Service</th>
-              <th class="text-left px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Status</th>
-              <th class="text-left px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider hidden md:table-cell">Counter</th>
-              <th class="text-left px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Time</th>
+
+    <div class="card overflow-hidden">
+      <SkeletonTable v-if="historyLoading" :rows="8" :cols="6" />
+      <div v-else class="overflow-x-auto">
+        <table class="table-gmail w-full text-sm">
+          <thead class="bg-muted/40">
+            <tr class="border-b border-border">
+              <th class="th">Ticket</th>
+              <th class="th">Customer</th>
+              <th class="th hidden sm:table-cell">Phone</th>
+              <th class="th">Status</th>
+              <th class="th hidden md:table-cell">Date</th>
+              <th class="th">Completed</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-border">
             <tr v-if="paginated.length === 0">
-              <td colspan="6" class="px-5 py-14 text-center text-muted-foreground">No records found.</td>
+              <td colspan="6" class="px-5 py-16 text-center">
+                <span class="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-muted">
+                  <Inbox class="h-5 w-5 text-muted-foreground" />
+                </span>
+                <p class="text-sm font-semibold text-foreground">No completed tickets yet</p>
+                <p class="mt-1 text-xs text-muted-foreground">
+                  Tickets you serve, skip, or cancel will appear here.
+                </p>
+              </td>
             </tr>
-            <tr v-for="t in paginated" :key="t.id" class="transition-[box-shadow,background-color] duration-150 hover:bg-muted/40 hover:shadow-[0_5px_12px_-5px_rgba(17,24,39,0.55)]">
-              <td class="px-5 py-3.5 font-extrabold text-primary tabular-nums">#{{ t.number }}</td>
-              <td class="px-5 py-3.5 font-semibold text-foreground">{{ t.customer }}</td>
-              <td class="px-5 py-3.5 text-muted-foreground hidden sm:table-cell">{{ t.service }}</td>
-              <td class="px-5 py-3.5"><StatusPill :status="t.status" /></td>
-              <td class="px-5 py-3.5 text-muted-foreground hidden md:table-cell">{{ t.counter || '—' }}</td>
-              <td class="px-5 py-3.5 text-muted-foreground tabular-nums">{{ t.joined }}</td>
+            <tr v-for="t in paginated" :key="t.id">
+              <td class="td font-extrabold text-gray-900 tabular-nums">{{ t.ticketNumber }}</td>
+              <td class="td font-semibold text-foreground">{{ t.customerName }}</td>
+              <td class="td text-muted-foreground hidden sm:table-cell">{{ t.phoneNumber }}</td>
+              <td class="td"><StatusPill :status="t.status" /></td>
+              <td class="td text-muted-foreground hidden md:table-cell tabular-nums">{{ formatDate(t.joinedAt) }}</td>
+              <td class="td text-muted-foreground tabular-nums">{{ formatTime(t.completedAt || t.skippedAt || t.cancelledAt) }}</td>
             </tr>
           </tbody>
         </table>
       </div>
-      <div v-if="totalPages > 1" class="flex items-center justify-between px-5 py-3.5 border-t border-border">
-        <p class="text-xs text-muted-foreground">Showing {{ (page - 1) * PER + 1 }}–{{ Math.min(page * PER, filtered.length) }} of {{ filtered.length }}</p>
+      <div v-if="!historyLoading && totalPages > 1" class="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3.5">
+        <p class="text-xs text-muted-foreground">
+          Showing {{ (page - 1) * PER + 1 }}–{{ Math.min(page * PER, filtered.length) }} of {{ filtered.length }}
+        </p>
         <div class="flex items-center gap-1">
-          <button class="p-1.5 rounded hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed" @click="page = Math.max(1, page - 1)" :disabled="page === 1">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
+          <button
+            class="btn btn-outline btn-sm !px-2"
+            aria-label="Previous page"
+            :disabled="page === 1"
+            @click="page = Math.max(1, page - 1)"
+          >
+            <ChevronLeft class="h-4 w-4" />
           </button>
           <button
             v-for="p in totalPages"
             :key="p"
             @click="page = p"
-            :class="['w-7 h-7 rounded text-xs font-bold transition-colors', page === p ? 'bg-primary text-white' : 'hover:bg-muted text-muted-foreground']"
+            :aria-current="page === p ? 'page' : undefined"
+            :class="[
+              'grid h-8 w-8 place-items-center text-xs font-bold transition-colors',
+              page === p ? 'bg-gray-900 text-white' : 'text-muted-foreground hover:bg-muted',
+            ]"
           >
             {{ p }}
           </button>
-          <button class="p-1.5 rounded hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed" @click="page = Math.min(totalPages, page + 1)" :disabled="page === totalPages">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
+          <button
+            class="btn btn-outline btn-sm !px-2"
+            aria-label="Next page"
+            :disabled="page === totalPages"
+            @click="page = Math.min(totalPages, page + 1)"
+          >
+            <ChevronRight class="h-4 w-4" />
           </button>
         </div>
       </div>

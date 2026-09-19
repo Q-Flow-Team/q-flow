@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { useStateStore } from '~/composables/useStateStore'
 import DashboardLayout from '~/layouts/dashboard.vue'
 import { LayoutDashboard, List, History } from 'lucide-vue-next'
 
-definePageMeta({ layout: false })
+definePageMeta({ layout: false, middleware: 'auth' })
 
-const state = useStateStore()
+const { user, logout } = useAuth()
+const { overview, refresh, shiftRequired, reset } = useStaffSession()
+
 const activePage = ref('overview')
 const selectedTicketId = ref<string | null>(null)
-const selectedCounter = computed(() => state.selectedCounter)
 
 const navItems = [
   { key: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -17,9 +17,36 @@ const navItems = [
 ]
 
 const { message, visible, showToast } = useToast()
-
 provide('showToast', showToast)
 provide('selectedTicketId', selectedTicketId)
+
+const userName = computed(() => user.value?.fullName || 'Counter Staff')
+const userRole = computed(() => overview.value?.counter?.counterName || 'Counter Staff')
+
+let timer: ReturnType<typeof setInterval> | null = null
+
+onMounted(async () => {
+  await refresh()
+  if (shiftRequired.value) {
+    navigateTo('/staff/counter')
+    return
+  }
+  timer = setInterval(() => refresh(true), 8000)
+})
+
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+})
+
+watch(shiftRequired, (required) => {
+  if (required) navigateTo('/staff/counter')
+})
+
+const handleSignOut = async () => {
+  reset()
+  await logout()
+  navigateTo('/')
+}
 </script>
 
 <template>
@@ -27,10 +54,11 @@ provide('selectedTicketId', selectedTicketId)
     <DashboardLayout
       :navItems="navItems"
       :activePage="activePage === 'ticket-detail' ? 'queue' : activePage"
-      :userName="'Mohammed Al-Rashid'"
-      :userRole="selectedCounter?.name ?? 'Counter Staff'"
+      :userName="userName"
+      :userRole="userRole"
+      title="Staff Dashboard"
       @navigate="activePage = $event"
-      @signOut="navigateTo('/')"
+      @signOut="handleSignOut"
     >
       <StaffOverview
         v-if="activePage === 'overview'"
