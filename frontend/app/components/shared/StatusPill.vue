@@ -26,7 +26,7 @@ const label = computed(() => statusLabel(props.status))
 <template>
   <span
     :class="[
-      'inline-flex items-center gap-1.5 rounded-full pl-2 pr-2.5 py-0.5 text-xs font-semibold whitespace-nowrap',
+      'inline-flex items-center gap-1.5 rounded-full pl-2 pr-2.5 py-0.5 text-xs font-semibold whitespace-nowrap ring-1 ring-inset ring-black/5 dark:ring-white/10',
       current.pill,
     ]"
   >

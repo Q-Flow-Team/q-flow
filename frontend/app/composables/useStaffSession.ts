@@ -77,21 +77,14 @@ export function useStaffSession() {
     try {
       const res = await apiGet<{ tickets: StaffTicket[] }>('/staff/history')
       history.value = res.tickets || []
+      if (sessionTickets.value.length === 0 && history.value.length > 0) {
+        sessionTickets.value = [...history.value]
+      }
     } catch (err: any) {
       // Non-fatal — the history tab simply stays empty.
     } finally {
       historyLoading.value = false
     }
-  }
-
-  const issuePriority = async (body: {
-    customerName: string
-    phoneNumber: string
-    preferredChannel?: string
-  }) => {
-    const res = await apiPost<{ message: string; ticket: StaffTicket }>('/staff/tickets/priority', body)
-    await refresh(true)
-    return res.ticket
   }
 
   const callNext = async () => {
@@ -144,7 +137,6 @@ export function useStaffSession() {
     trackTicket,
     refresh,
     fetchHistory,
-    issuePriority,
     callNext,
     startService,
     completeService,

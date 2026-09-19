@@ -15,16 +15,9 @@ export function useTheme() {
 
   const init = () => {
     if (!import.meta.client) return
-    const stored = (() => {
-      try {
-        return localStorage.getItem('qflow-theme') as Theme | null
-      } catch {
-        return null
-      }
-    })()
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    theme.value = stored === 'dark' || stored === 'light' ? stored : prefersDark ? 'dark' : 'light'
-    apply(theme.value)
+    // The app is light-only — always force the white theme.
+    theme.value = 'light'
+    apply('light')
   }
 
   const toggle = () => {

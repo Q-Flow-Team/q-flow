@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Loader2, Unlink, Copy, Check, Plus } from 'lucide-vue-next'
 import { apiGet, apiPost, apiPatch } from '~/utils/api'
+import { trim, isValidCounterNumber, isValidCounterName } from '~/utils/validate'
 
 const showToast = inject<(msg: string) => void>('showToast', () => {})
 
@@ -22,6 +23,36 @@ const newName = ref('')
 const creating = ref(false)
 const busyId = ref<string | null>(null)
 const copiedId = ref<string | null>(null)
+const formErrors = ref({ number: '', name: '' })
+const touched = ref<Record<string, boolean>>({})
+
+const validateForm = () => {
+  const errors = { number: '', name: '' }
+  const nv = newNumber.value as number | null
+  if (!isValidCounterNumber(nv)) {
+    errors.number = nv === null || nv === '' ? 'Counter number is required.' : 'Enter a whole number between 1 and 999.'
+  } else if (counters.value.some((c) => c.counterNumber === nv)) {
+    errors.number = `Counter ${nv} already exists.`
+  }
+  const name = trim(newName.value)
+  if (!name) errors.name = 'Counter name is required.'
+  else if (!isValidCounterName(name)) errors.name = 'Counter name can only use letters, numbers, & ( ) . , / - and single spaces.'
+  formErrors.value = errors
+  return !Object.values(errors).some(Boolean)
+}
+
+const validateField = (field: 'number' | 'name') => {
+  touched.value[field] = true
+  validateForm()
+}
+
+const openForm = () => {
+  showForm.value = !showForm.value
+  newNumber.value = null
+  newName.value = ''
+  formErrors.value = { number: '', name: '' }
+  touched.value = {}
+}
 
 const load = async () => {
   loading.value = true
@@ -39,7 +70,8 @@ const load = async () => {
 onMounted(load)
 
 const handleCreate = async () => {
-  if (!newNumber.value || !newName.value.trim()) return
+  touched.value = { number: true, name: true }
+  if (!validateForm()) return
   creating.value = true
   try {
     const res = await apiPost<{ message: string; counter: Counter }>('/admin/counters', {
@@ -51,6 +83,7 @@ const handleCreate = async () => {
     showToast('Counter created successfully')
     newNumber.value = null
     newName.value = ''
+    formErrors.value = { number: '', name: '' }
     showForm.value = false
   } catch (err: any) {
     showToast(err?.message || 'Failed to create counter')
@@ -112,94 +145,140 @@ const copyId = async (c: Counter) => {
   <div class="space-y-5">
     <div class="flex items-center justify-between">
       <div>
-        <h2 class="text-xl font-bold text-foreground">Counters</h2>
-        <p class="text-sm text-muted-foreground mt-0.5">{{ counters.length }} counters configured</p>
+        <h2 class="text-xl font-extrabold tracking-tight text-foreground">Counters</h2>
       </div>
-      <button class="inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-150 bg-primary text-white hover:bg-primary-hover active:bg-primary-active px-3 py-1.5 text-xs" @click="showForm = !showForm">
-        <Plus class="w-4 h-4" />
-        Add Counter
+      <button class="btn btn-sm btn-primary" @click="openForm">
+        <Plus class="h-4 w-4" />
+        {{ showForm ? 'Close' : 'Add Counter' }}
       </button>
     </div>
 
-    <div v-if="showForm" class="bg-card border border-border rounded-2xl shadow-card p-5">
-      <h3 class="text-sm font-bold text-foreground mb-3">New Counter</h3>
-      <div class="flex flex-col sm:flex-row gap-2.5">
-        <input
-          v-model.number="newNumber"
-          type="number"
-          min="1"
-          class="w-full sm:w-28 px-3 py-2.5 rounded-lg border border-border bg-input-bg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-          placeholder="No."
-        />
-        <input
-          v-model="newName"
-          class="flex-1 px-3 py-2.5 rounded-lg border border-border bg-input-bg text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-          placeholder="Counter name, e.g. VIP / Priority Desk"
-          @keydown.enter="handleCreate"
-        />
+    <div v-if="showForm" class="card p-5">
+      <h3 class="mb-4 text-sm font-bold text-foreground">New Counter</h3>
+      <div class="flex flex-col gap-2.5 sm:flex-row">
+        <div>
+          <input
+            v-model.number="newNumber"
+            type="number"
+            min="1"
+            max="999"
+            step="1"
+            class="input sm:w-28"
+            :class="touched.number && formErrors.number ? 'border-danger' : ''"
+            placeholder="No."
+            @blur="validateField('number')"
+            @input="touched.number && validateField('number')"
+          />
+          <p v-if="touched.number && formErrors.number" class="mt-1 text-xs text-danger">{{ formErrors.number }}</p>
+        </div>
+        <div class="flex-1">
+          <input
+            v-model="newName"
+            class="input w-full"
+            :class="touched.name && formErrors.name ? 'border-danger' : ''"
+            placeholder="Counter name, e.g. VIP / Priority Desk"
+            @blur="validateField('name')"
+            @input="touched.name && validateField('name')"
+            @keydown.enter="handleCreate"
+          />
+          <p v-if="touched.name && formErrors.name" class="mt-1 text-xs text-danger">{{ formErrors.name }}</p>
+        </div>
         <button
-          :disabled="!newName.trim() || !newNumber || creating"
-          class="inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-150 bg-primary text-white hover:bg-primary-hover active:bg-primary-active px-3 py-2.5 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+          :disabled="creating"
+          class="btn btn-sm btn-primary"
           @click="handleCreate"
         >
-          <Loader2 v-if="creating" class="w-3.5 h-3.5 animate-spin" />
+          <Loader2 v-if="creating" class="h-3.5 w-3.5 animate-spin" />
           Create
         </button>
-        <button class="inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-150 bg-transparent text-foreground hover:bg-muted active:bg-border px-3 py-2.5 text-xs border border-border" @click="showForm = false">
-          Cancel
-        </button>
+        <button class="btn btn-sm btn-outline" @click="showForm = false">Cancel</button>
       </div>
     </div>
 
     <p v-if="errorMsg" class="text-xs text-danger">{{ errorMsg }}</p>
 
-    <div class="bg-card border border-border rounded-2xl shadow-card overflow-hidden">
+    <div class="card overflow-hidden">
       <SkeletonTable v-if="loading" :rows="counters.length || 5" :cols="3" />
-      <div v-else-if="counters.length === 0" class="py-14 text-center text-sm text-muted-foreground">
+      <div v-else-if="counters.length === 0" class="px-5 py-16 text-center text-sm text-muted-foreground">
         No counters configured yet.
       </div>
-      <div v-else class="divide-y divide-border">
-        <div v-for="c in counters" :key="c.id" class="flex flex-wrap items-center justify-between gap-3 px-5 py-4 transition-colors duration-150 hover:bg-muted/50">
-          <div class="flex items-center gap-3 min-w-0">
-            <div :class="['w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm flex-shrink-0', c.isActive ? 'bg-primary-light text-primary' : 'bg-muted text-muted-foreground']">
-              {{ c.counterNumber }}
-            </div>
-            <div class="min-w-0">
-              <p class="text-sm font-semibold text-foreground truncate">{{ c.counterName }}</p>
-              <p :class="['text-xs font-semibold', c.isActive ? 'text-success' : 'text-muted-foreground']">
-                {{ c.isActive ? 'Active' : 'Inactive' }}
-                <span v-if="c.currentStaff" class="text-muted-foreground font-normal">
-                  &middot; {{ c.currentStaff.fullName }} ({{ c.currentStaff.employeeId }})
+      <div v-else class="overflow-x-auto">
+        <table class="table-gmail w-full text-sm">
+          <thead class="bg-muted/40">
+            <tr class="border-b border-border">
+              <th class="th">Counter</th>
+              <th class="th">Status</th>
+              <th class="th hidden md:table-cell">Staff</th>
+              <th class="th text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border">
+            <tr v-for="c in counters" :key="c.id">
+              <td class="td">
+                <div class="flex items-center gap-3">
+                  <span class="text-sm font-bold text-foreground tabular-nums">
+                    {{ String(c.counterNumber).padStart(2, '0') }}
+                  </span>
+                  <div class="min-w-0">
+                    <p class="truncate font-semibold text-foreground">{{ c.counterName }}</p>
+                    <button class="inline-flex cursor-pointer items-center gap-1 font-mono text-[11px] text-muted-foreground transition-colors hover:text-gray-900" @click="copyId(c)">
+                      <component :is="copiedId === c.id ? Check : Copy" class="h-3 w-3" />
+                      {{ copiedId === c.id ? 'Copied!' : c.id }}
+                    </button>
+                  </div>
+                </div>
+              </td>
+              <td class="td">
+                <span
+                  :class="[
+                    'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold',
+                    c.isActive ? 'bg-success-light text-success' : 'bg-muted text-muted-foreground',
+                  ]"
+                >
+                  <span :class="['h-1.5 w-1.5 rounded-full', c.isActive ? 'bg-success' : 'bg-muted-foreground']" />
+                  {{ c.isActive ? 'Active' : 'Inactive' }}
                 </span>
-              </p>
-              <button class="mt-0.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary transition-colors" @click="copyId(c)">
-                <component :is="copiedId === c.id ? Check : Copy" class="w-3 h-3" />
-                {{ c.id }}
-              </button>
-            </div>
-          </div>
-          <div class="flex items-center gap-3">
-            <button
-              v-if="c.currentStaff"
-              :disabled="busyId === c.id"
-              class="inline-flex items-center gap-1.5 text-xs font-semibold text-danger border border-danger-border hover:bg-danger-light rounded-lg px-2.5 py-1.5 transition-colors disabled:opacity-50"
-              @click="handleForceUnbind(c)"
-            >
-              <Loader2 v-if="busyId === c.id" class="w-3.5 h-3.5 animate-spin" />
-              <Unlink v-else class="w-3.5 h-3.5" />
-              Force Unbind
-            </button>
-            <button
-              role="switch"
-              :aria-checked="c.isActive"
-              :disabled="busyId === c.id"
-              @click="handleToggle(c)"
-              :class="['relative inline-flex w-10 h-5 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 cursor-pointer disabled:opacity-50', c.isActive ? 'bg-primary' : 'bg-border']"
-            >
-              <span :class="['absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200', c.isActive ? 'translate-x-5' : 'translate-x-0']" />
-            </button>
-          </div>
-        </div>
+              </td>
+              <td class="td text-muted-foreground hidden md:table-cell font-mono text-xs">
+                <span v-if="c.currentStaff">
+                  {{ c.currentStaff.employeeId }}
+                </span>
+                <span v-else>Unassigned</span>
+              </td>
+              <td class="td text-right">
+                <div class="flex items-center justify-end gap-3">
+                  <button
+                    v-if="c.currentStaff"
+                    :disabled="busyId === c.id"
+                    class="btn btn-sm btn-ghost-danger"
+                    @click="handleForceUnbind(c)"
+                  >
+                    <Loader2 v-if="busyId === c.id" class="h-3.5 w-3.5 animate-spin" />
+                    <Unlink v-else class="h-3.5 w-3.5" />
+                    Unbind
+                  </button>
+                  <button
+                    role="switch"
+                    :aria-checked="c.isActive"
+                    :disabled="busyId === c.id"
+                    @click="handleToggle(c)"
+                    :class="[
+                      'relative inline-flex h-6 w-11 cursor-pointer items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+                      c.isActive ? 'bg-gray-900' : 'bg-border',
+                    ]"
+                  >
+                    <span
+                      :class="[
+                        'inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200',
+                        c.isActive ? 'translate-x-[22px]' : 'translate-x-0.5',
+                      ]"
+                    />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>

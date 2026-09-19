@@ -4,7 +4,9 @@ const sizeClass = computed(() => ({ sm: 'text-lg', md: 'text-xl', lg: 'text-2xl'
 </script>
 
 <template>
-  <div :class="['font-extrabold tracking-tight leading-none', sizeClass]">
-    <span class="text-primary">Q</span><span class="text-foreground">Flow</span>
-  </div>
+  <span
+    :class="['font-extrabold uppercase tracking-[0.18em] leading-none text-foreground', sizeClass]"
+  >
+    QFLOW
+  </span>
 </template>

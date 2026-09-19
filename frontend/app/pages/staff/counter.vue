@@ -99,7 +99,7 @@ const copyId = async () => {
         <div v-if="activeCounter" class="space-y-4">
           <div class="flex items-center justify-between p-4 rounded-xl border border-primary bg-primary-lighter">
             <div class="flex items-center gap-3">
-              <div class="w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm bg-primary text-white">
+              <div class="w-9 h-9 rounded-md flex items-center justify-center font-bold text-sm bg-primary text-white">
                 {{ activeCounter.counterNumber }}
               </div>
               <div>
@@ -110,7 +110,7 @@ const copyId = async () => {
             <Check class="w-4 h-4 text-primary" />
           </div>
 
-          <div class="flex items-center justify-between text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2">
+          <div class="flex items-center justify-between text-xs text-muted-foreground bg-muted rounded-md px-3 py-2">
             <span class="truncate mr-2">Counter ID: {{ activeCounter.id }}</span>
             <button class="inline-flex items-center gap-1 font-semibold text-primary hover:underline flex-shrink-0" @click="copyId">
               <component :is="copied ? Check : Copy" class="w-3.5 h-3.5" />
@@ -119,7 +119,7 @@ const copyId = async () => {
           </div>
 
           <button
-            class="w-full inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-150 bg-primary text-white hover:bg-primary-hover px-5 py-3 text-base"
+            class="w-full inline-flex items-center justify-center gap-2 font-semibold rounded-md transition-all duration-150 bg-primary text-white hover:bg-primary-hover px-5 py-3 text-base"
             @click="continueToDashboard"
           >
             Continue to Dashboard
@@ -128,7 +128,7 @@ const copyId = async () => {
             </svg>
           </button>
           <button
-            class="w-full inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-150 bg-transparent text-foreground hover:bg-muted border border-border px-5 py-2.5 text-sm"
+            class="w-full inline-flex items-center justify-center gap-2 font-semibold rounded-md transition-all duration-150 bg-transparent text-foreground hover:bg-muted border border-border px-5 py-2.5 text-sm"
             @click="handleUnbind"
           >
             <Unlink class="w-4 h-4" />
@@ -138,7 +138,7 @@ const copyId = async () => {
 
         <!-- Binding flow -->
         <template v-else>
-          <div v-if="errorMsg" class="flex items-start gap-2.5 p-3 mb-4 bg-danger-light border border-danger-light-border rounded-lg">
+          <div v-if="errorMsg" class="flex items-start gap-2.5 p-3 mb-4 bg-danger-light border border-danger-light-border rounded-md">
             <p class="text-sm text-danger">{{ errorMsg }}</p>
           </div>
 
@@ -160,7 +160,7 @@ const copyId = async () => {
                 <div class="flex items-center gap-3">
                   <div
                     :class="[
-                      'w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm',
+                      'w-9 h-9 rounded-md flex items-center justify-center font-bold text-sm',
                       sel === c.id ? 'bg-primary text-white' : 'bg-muted text-foreground'
                     ]"
                   >
@@ -181,14 +181,14 @@ const copyId = async () => {
 
             <!-- Fallback: counter id entry when the counter directory is admin-only -->
             <div v-else class="mb-6 space-y-3">
-              <div class="p-3 bg-primary-lighter border border-primary-border rounded-lg">
+              <div class="p-3 bg-primary-lighter border border-primary-border rounded-md">
                 <p class="text-xs text-primary-dark-text leading-relaxed">
                   Enter the Counter ID provided by your branch administrator to start your shift.
                 </p>
               </div>
               <input
                 v-model="manualId"
-                class="w-full px-3 py-2.5 rounded-lg border border-border bg-input-bg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
+                class="w-full px-3 py-2.5 rounded-md border border-border bg-input-bg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
                 placeholder="Paste Counter ID"
                 @keydown.enter="handleManualBind"
               />
@@ -197,7 +197,7 @@ const copyId = async () => {
             <button
               v-if="availableCounters.length"
               :disabled="!sel || binding"
-              class="w-full inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed select-none bg-primary text-white hover:bg-primary-hover active:bg-primary-active px-5 py-3 text-base"
+              class="w-full inline-flex items-center justify-center gap-2 font-semibold rounded-md transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed select-none bg-primary text-white hover:bg-primary-hover active:bg-primary-active px-5 py-3 text-base"
               @click="handleSelect"
             >
               <Loader2 v-if="binding" class="w-4 h-4 animate-spin" />
@@ -207,7 +207,7 @@ const copyId = async () => {
             <button
               v-else
               :disabled="!manualId.trim() || binding"
-              class="w-full inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed select-none bg-primary text-white hover:bg-primary-hover active:bg-primary-active px-5 py-3 text-base"
+              class="w-full inline-flex items-center justify-center gap-2 font-semibold rounded-md transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed select-none bg-primary text-white hover:bg-primary-hover active:bg-primary-active px-5 py-3 text-base"
               @click="handleManualBind"
             >
               <Loader2 v-if="binding" class="w-4 h-4 animate-spin" />

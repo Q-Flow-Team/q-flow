@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import DashboardLayout from '~/layouts/dashboard.vue'
-import { Hash, Users, QrCode } from 'lucide-vue-next'
+import { LayoutDashboard, Hash, Users, QrCode } from 'lucide-vue-next'
 
 definePageMeta({ layout: false, middleware: 'auth' })
 
-type AdminPage = 'counters' | 'staff' | 'qr'
-const activePage = ref<AdminPage>('counters')
+type AdminPage = 'overview' | 'counters' | 'staff' | 'qr'
+const activePage = ref<AdminPage>('overview')
 
 const { user, logout } = useAuth()
 
 const navItems = [
+  { key: 'overview', label: 'Overview', icon: LayoutDashboard },
   { key: 'counters', label: 'Counters', icon: Hash },
   { key: 'staff', label: 'Staff', icon: Users },
   { key: 'qr', label: 'QR Codes', icon: QrCode },
@@ -34,10 +35,12 @@ const handleSignOut = async () => {
       :activePage="activePage"
       :userName="userName"
       :userRole="userRole"
+      title="Admin Dashboard"
       @navigate="activePage = $event as AdminPage"
       @signOut="handleSignOut"
     >
-      <AdminCounters v-if="activePage === 'counters'" />
+      <AdminOverview v-if="activePage === 'overview'" />
+      <AdminCounters v-else-if="activePage === 'counters'" />
       <AdminStaff v-else-if="activePage === 'staff'" />
       <AdminQR v-else-if="activePage === 'qr'" />
     </DashboardLayout>

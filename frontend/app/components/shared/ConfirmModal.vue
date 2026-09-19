@@ -21,13 +21,13 @@ defineEmits<{ confirm: []; cancel: [] }>()
       <p class="text-sm text-muted-foreground leading-relaxed mb-7">{{ body }}</p>
       <div class="flex gap-3 w-full">
         <button
-          class="flex-1 inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-150 px-4 py-2.5 text-sm bg-transparent text-foreground hover:bg-muted active:bg-border border border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          class="flex-1 inline-flex items-center justify-center gap-2 font-semibold rounded-none transition-all duration-150 px-4 py-2.5 text-sm bg-transparent text-foreground hover:bg-muted active:bg-border border border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           @click="$emit('cancel')"
         >
           No, Cancel
         </button>
         <button
-          class="flex-1 inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-150 px-4 py-2.5 text-sm bg-danger text-white hover:bg-danger-hover active:bg-danger-active focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          class="flex-1 inline-flex items-center justify-center gap-2 font-semibold rounded-none transition-all duration-150 px-4 py-2.5 text-sm bg-danger text-white hover:bg-danger-hover active:bg-danger-active focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           @click="$emit('confirm')"
         >
           {{ confirmLabel }}

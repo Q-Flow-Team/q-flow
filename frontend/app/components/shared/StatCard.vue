@@ -12,46 +12,83 @@ const props = withDefaults(
     tone?: Tone
     trend?: string
     trendUp?: boolean
+    progress?: number
+    spark?: number[]
   }>(),
-  { tone: 'primary', trendUp: true },
+  { tone: 'primary', trendUp: true, progress: -1, spark: undefined },
 )
 
-const tones: Record<Tone, { chip: string; bar: string }> = {
-  primary: { chip: 'bg-primary-light text-primary', bar: 'bg-primary' },
-  success: { chip: 'bg-success-light text-success', bar: 'bg-success' },
-  warning: { chip: 'bg-warning-light text-warning', bar: 'bg-warning' },
-  danger: { chip: 'bg-danger-light text-danger', bar: 'bg-danger' },
-  neutral: { chip: 'bg-muted text-muted-foreground', bar: 'bg-muted-foreground' },
+const tones: Record<Tone, { chip: string; bar: string; text: string }> = {
+  primary: { chip: 'bg-primary-light text-primary', bar: 'bg-primary', text: 'text-primary' },
+  success: { chip: 'bg-success-light text-success', bar: 'bg-success', text: 'text-success' },
+  warning: { chip: 'bg-warning-light text-warning', bar: 'bg-warning', text: 'text-warning' },
+  danger: { chip: 'bg-danger-light text-danger', bar: 'bg-danger', text: 'text-danger' },
+  neutral: { chip: 'bg-muted text-muted-foreground', bar: 'bg-muted-foreground', text: 'text-muted-foreground' },
 }
 
 const style = computed(() => tones[props.tone])
+const clampedProgress = computed(() => Math.min(100, Math.max(0, props.progress)))
+
+const sparkPath = computed(() => {
+  const pts = props.spark
+  if (!pts || pts.length < 2) return ''
+  const min = Math.min(...pts)
+  const max = Math.max(...pts)
+  const range = max - min || 1
+  const w = 100
+  const h = 28
+  return pts
+    .map((p, i) => {
+      const x = (i / (pts!.length - 1)) * w
+      const y = h - ((p - min) / range) * (h - 4) - 2
+      return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
+    })
+    .join(' ')
+})
 </script>
 
 <template>
   <div
-    class="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-card transition-all duration-300 hover:-translate-y-0.5 hover:border-primary-border/70 hover:shadow-card-hover"
+    class="card card-hover group relative overflow-hidden p-5"
   >
-    <span :class="['absolute inset-x-0 top-0 h-1 opacity-80', style.bar]" aria-hidden="true" />
+    <!-- soft tonal wash -->
+    <span
+      :class="['pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full opacity-0 blur-3xl transition-opacity duration-300 group-hover:opacity-60', style.chip]"
+      aria-hidden="true"
+    />
 
-    <div class="flex items-start justify-between gap-3">
+    <div class="relative flex items-start justify-between gap-3">
       <div class="min-w-0">
         <p class="text-xs font-bold uppercase tracking-wider text-muted-foreground">{{ label }}</p>
-        <p class="mt-2 text-3xl font-extrabold leading-none tracking-tight text-foreground tabular-nums">
+        <p class="mt-2 text-[32px] font-extrabold leading-none tracking-tight text-foreground tabular-nums">
           {{ value }}
         </p>
       </div>
-      <span
-        v-if="icon"
-        :class="[
-          'grid h-11 w-11 flex-shrink-0 place-items-center rounded-xl transition-transform duration-300 group-hover:scale-105',
-          style.chip,
-        ]"
-      >
-        <component :is="icon" class="h-5 w-5" />
-      </span>
+
+      <div class="flex flex-col items-end gap-2">
+        <span
+          v-if="icon"
+          :class="[
+            'grid h-11 w-11 flex-shrink-0 place-items-center rounded-xl transition-transform duration-300 group-hover:scale-105',
+            style.chip,
+          ]"
+        >
+          <component :is="icon" class="h-5 w-5" />
+        </span>
+        <svg
+          v-if="sparkPath"
+          class="h-7 w-24 text-muted-foreground"
+          viewBox="0 0 100 28"
+          fill="none"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <path :d="sparkPath" :class="style.text" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.65" />
+        </svg>
+      </div>
     </div>
 
-    <div v-if="sub || trend" class="mt-3 flex items-center gap-2">
+    <div v-if="sub || trend" class="relative mt-3 flex items-center gap-2">
       <span
         v-if="trend"
         :class="[
@@ -72,6 +109,20 @@ const style = computed(() => tones[props.tone])
         {{ trend }}
       </span>
       <span v-if="sub" class="truncate text-xs text-muted-foreground">{{ sub }}</span>
+    </div>
+
+    <div
+      v-if="progress >= 0"
+      class="relative mt-4 h-1.5 w-full overflow-hidden rounded-full bg-muted"
+      role="progressbar"
+      :aria-valuenow="clampedProgress"
+      aria-valuemin="0"
+      aria-valuemax="100"
+    >
+      <span
+        :class="['block h-full rounded-full transition-all duration-700 ease-out', style.bar]"
+        :style="{ width: `${clampedProgress}%` }"
+      />
     </div>
   </div>
 </template>

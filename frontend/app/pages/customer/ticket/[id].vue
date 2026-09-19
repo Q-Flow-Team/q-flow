@@ -22,7 +22,7 @@ const ticket = ref<StatusTicket | null>(null)
 const initialPosition = ref<number | null>(null)
 const loading = ref(true)
 const errorMsg = ref('')
-const confirmLeave = ref(false)
+const confirmCancel = ref(false)
 const cancelling = ref(false)
 
 const loadStoredTicket = () => {
@@ -120,12 +120,16 @@ const handleCancel = async () => {
     await apiPost(`/tickets/${ticketId.value}/cancel`)
     if (import.meta.client) localStorage.removeItem(`qflow_ticket_${ticketId.value}`)
     await fetchStatus(true)
-    confirmLeave.value = false
+    confirmCancel.value = false
   } catch (err: any) {
     errorMsg.value = err?.message || 'We could not cancel your ticket.'
   } finally {
     cancelling.value = false
   }
+}
+
+const leaveQueue = () => {
+  navigateTo('/')
 }
 
 const startOver = () => {
@@ -262,32 +266,37 @@ const startOver = () => {
       <div class="p-5 space-y-4">
         <div v-if="errorMsg" class="text-xs text-danger">{{ errorMsg }}</div>
 
-        <div v-if="canCancel">
-          <div v-if="confirmLeave" class="bg-muted border border-border rounded-xl p-4 space-y-3">
-            <p class="text-sm font-bold text-foreground">Leave the queue?</p>
-            <p class="text-xs text-muted-foreground">You'll lose your position and need to rejoin.</p>
+        <div v-if="canCancel" class="space-y-3">
+          <button
+            class="w-full inline-flex items-center justify-center gap-2 font-semibold rounded-none transition-all duration-150 px-3 py-1.5 text-xs bg-transparent text-foreground hover:bg-muted active:bg-border border border-border"
+            @click="leaveQueue"
+          >Leave Queue</button>
+
+          <div v-if="confirmCancel" class="bg-primary-lighter border border-primary-border rounded-xl p-4 space-y-3">
+            <p class="text-sm font-bold text-foreground">Cancel your ticket?</p>
+            <p class="text-xs text-muted-foreground">This removes your ticket from the queue and everyone else moves up.</p>
             <div class="flex gap-2">
               <button
                 :disabled="cancelling"
-                class="flex-1 inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-150 px-3 py-1.5 text-xs bg-danger text-white hover:bg-danger-hover disabled:opacity-50"
+                class="flex-1 inline-flex items-center justify-center gap-2 font-semibold rounded-none transition-all duration-150 px-3 py-1.5 text-xs bg-danger text-white hover:bg-danger-hover disabled:opacity-50"
                 @click="handleCancel"
-              >{{ cancelling ? 'Cancelling…' : 'Yes, Leave' }}</button>
+              >{{ cancelling ? 'Cancelling…' : 'Yes, Cancel' }}</button>
               <button
-                class="flex-1 inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-150 px-3 py-1.5 text-xs bg-transparent text-foreground hover:bg-muted border border-border"
-                @click="confirmLeave = false"
-              >Cancel</button>
+                class="flex-1 inline-flex items-center justify-center gap-2 font-semibold rounded-none transition-all duration-150 px-3 py-1.5 text-xs bg-transparent text-foreground hover:bg-muted border border-border"
+                @click="confirmCancel = false"
+              >Keep Waiting</button>
             </div>
           </div>
           <button
             v-else
-            class="w-full inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-150 px-3 py-1.5 text-xs bg-transparent text-foreground hover:bg-muted active:bg-border"
-            @click="confirmLeave = true"
-          >Leave Queue</button>
+            class="w-full inline-flex items-center justify-center gap-2 font-semibold rounded-none transition-all duration-150 px-3 py-1.5 text-xs bg-danger/10 text-danger hover:bg-danger/20"
+            @click="confirmCancel = true"
+          >Cancel Ticket</button>
         </div>
 
         <button
           v-else
-          class="w-full inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-150 bg-primary text-white hover:bg-primary-hover px-4 py-2.5 text-sm"
+          class="w-full inline-flex items-center justify-center gap-2 font-semibold rounded-none transition-all duration-150 bg-primary text-white hover:bg-primary-hover px-4 py-2.5 text-sm"
           @click="startOver"
         >Join Queue Again</button>
       </div>

@@ -1,3 +1,5 @@
+import { handleMockRequest } from '~/utils/mockApi'
+
 export interface ApiError {
   status: number
   message: string
@@ -5,7 +7,17 @@ export interface ApiError {
 
 const TOKEN_KEY = 'qflow_token'
 const USER_KEY = 'qflow_user'
-const FALLBACK_BASE = 'https://q-flow-backend.vercel.app/api/v1'
+const FALLBACK_BASE = '/api/v1'
+
+export function useMockApi(): boolean {
+  try {
+    const config = useRuntimeConfig()
+    const raw = config.public.useMock
+    return raw !== false && String(raw).toLowerCase() !== 'false'
+  } catch {
+    return true
+  }
+}
 
 export function resolveApiBase(): string {
   try {
@@ -72,6 +84,14 @@ export async function apiRequest<T = any>(
   path: string,
   options: { method?: HttpMethod; body?: any; query?: Record<string, any> } = {},
 ): Promise<T> {
+  if (useMockApi()) {
+    try {
+      return await handleMockRequest<T>(path, options.method || 'GET', options.body, options.query, getToken())
+    } catch (err) {
+      throw normalizeError(err)
+    }
+  }
+
   const base = resolveApiBase().replace(/\/$/, '')
   const token = getToken()
   const headers: Record<string, string> = { Accept: 'application/json' }

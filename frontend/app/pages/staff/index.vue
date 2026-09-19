@@ -56,6 +56,7 @@ const handleSignOut = async () => {
       :activePage="activePage === 'ticket-detail' ? 'queue' : activePage"
       :userName="userName"
       :userRole="userRole"
+      title="Staff Dashboard"
       @navigate="activePage = $event"
       @signOut="handleSignOut"
     >

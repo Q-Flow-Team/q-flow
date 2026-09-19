@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Loader2, LogIn } from 'lucide-vue-next'
+import { Loader2 } from 'lucide-vue-next'
 import { apiPost } from '~/utils/api'
+import { isValidName, isValidPhone, nameMessage, phoneMessage, trim } from '~/utils/validate'
 
 definePageMeta({ layout: 'customer' })
 
@@ -13,24 +14,37 @@ const siteName = computed(() => {
 const name = ref('')
 const phone = ref('')
 const errors = ref<{ name?: string; phone?: string }>({})
+const touched = ref<{ name?: boolean; phone?: boolean }>({})
 const loading = ref(false)
 const serverError = ref('')
 
+const validate = () => {
+  const errs: typeof errors.value = {}
+  const n = trim(name.value)
+  if (!n) errs.name = 'Please enter your full name.'
+  else if (!isValidName(n)) errs.name = nameMessage(n)
+  const p = trim(phone.value)
+  if (!p) errs.phone = 'Please enter your phone number.'
+  else if (!isValidPhone(p)) errs.phone = phoneMessage(p)
+  errors.value = errs
+  return Object.keys(errs).length === 0
+}
+
+const validateField = (field: 'name' | 'phone') => {
+  touched.value[field] = true
+  validate()
+}
+
 const handleSubmit = async () => {
   serverError.value = ''
-  const errs: typeof errors.value = {}
-  if (!name.value.trim()) errs.name = 'Please enter your full name'
-  if (!phone.value.trim()) errs.phone = 'Please enter your phone number'
-  if (Object.keys(errs).length) {
-    errors.value = errs
-    return
-  }
+  touched.value = { name: true, phone: true }
+  if (!validate()) return
 
   loading.value = true
   try {
     const res = await apiPost<{ message: string; ticket: any }>('/tickets/check-in', {
-      customerName: name.value.trim(),
-      phoneNumber: phone.value.trim(),
+      customerName: trim(name.value),
+      phoneNumber: trim(phone.value),
       preferredChannel: 'SMS',
     })
 
@@ -54,13 +68,6 @@ const handleSubmit = async () => {
       <QFlowLogo />
       <div class="flex items-center gap-3">
         <span class="text-xs text-muted-foreground tabular-nums hidden sm:inline">Live Queue</span>
-        <NuxtLink
-          to="/login"
-          class="inline-flex items-center gap-1.5 text-xs font-bold rounded-lg px-3 py-1.5 bg-primary-light text-primary hover:bg-primary-lighter transition-colors"
-        >
-          <LogIn class="w-3.5 h-3.5" />
-          Sign In
-        </NuxtLink>
       </div>
     </div>
 
@@ -98,8 +105,11 @@ const handleSubmit = async () => {
         <label class="block text-sm font-semibold text-foreground">Full Name</label>
         <input
           v-model="name"
-          class="w-full px-3 py-2.5 rounded-lg border border-border bg-input-bg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
+          autocomplete="name"
+          :class="['w-full px-3 py-2.5 rounded-md border bg-input-bg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm', errors.name ? 'border-danger' : 'border-border']"
           placeholder="Your full name"
+          @blur="validateField('name')"
+          @input="touched.name && validateField('name')"
         />
         <p v-if="errors.name" class="text-xs text-danger mt-1">{{ errors.name }}</p>
       </div>
@@ -109,13 +119,16 @@ const handleSubmit = async () => {
         <input
           v-model="phone"
           type="tel"
-          class="w-full px-3 py-2.5 rounded-lg border border-border bg-input-bg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
-          placeholder="+971 50 000 0000"
+          autocomplete="tel"
+          :class="['w-full px-3 py-2.5 rounded-md border bg-input-bg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm', errors.phone ? 'border-danger' : 'border-border']"
+          placeholder="+233 20 0000 000"
+          @blur="validateField('phone')"
+          @input="touched.phone && validateField('phone')"
         />
         <p v-if="errors.phone" class="text-xs text-danger mt-1">{{ errors.phone }}</p>
       </div>
 
-      <div v-if="serverError" class="flex items-start gap-2.5 p-3 bg-danger-light border border-danger-light-border rounded-lg">
+      <div v-if="serverError" class="flex items-start gap-2.5 p-3 bg-danger-light border border-danger-light-border rounded-md">
         <svg class="w-4 h-4 text-danger flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
         </svg>
@@ -125,7 +138,7 @@ const handleSubmit = async () => {
       <button
         type="submit"
         :disabled="loading"
-        class="w-full inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed select-none bg-primary text-white hover:bg-primary-hover active:bg-primary-active px-5 py-3 text-base mt-1"
+        class="w-full inline-flex items-center justify-center gap-2 font-semibold rounded-md transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed select-none bg-primary text-white hover:bg-primary-hover active:bg-primary-active px-5 py-3 text-base mt-1 cursor-pointer"
       >
         <Loader2 v-if="loading" class="w-4 h-4 animate-spin" />
         {{ loading ? 'Joining…' : 'Join Queue' }}
