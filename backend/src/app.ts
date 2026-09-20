@@ -14,45 +14,74 @@ import { apiLimiter } from './middlewares/rateLimit.middleware.js';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './config/swagger.js';
 
-const defaultLocalOrigins = ['http://localhost:3000', 'http://localhost:5173', 'https://flow-frontend-murex.vercel.app'];
+// Build allowed origins array and strip any accidental trailing slashes
+const defaultLocalOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://flow-frontend-murex.vercel.app',
+];
 
 const envOrigins = (process.env.CLIENT_ORIGIN || '')
   .split(',')
-  .map((origin) => origin.trim())
+  .map((origin) => origin.trim().replace(/\/$/, ''))
   .filter(Boolean);
 
-const allowedOrigins = Array.from(new Set([...defaultLocalOrigins, ...envOrigins]));
+const allowedOrigins = Array.from(
+  new Set([...defaultLocalOrigins, ...envOrigins])
+);
+
+const isOriginAllowed = (origin?: string): boolean => {
+  if (!origin) return true; // Allow curl, Postman, mobile apps
+  const normalized = origin.trim().replace(/\/$/, '');
+  return allowedOrigins.includes(normalized);
+};
 
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (e.g. curl, Postman, server-to-server)
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (isOriginAllowed(origin)) {
       callback(null, true);
     } else {
-      callback(new Error(`Origin ${origin} not allowed by CORS.`));
+      // CRITICAL: Return (null, false) so OPTIONS requests don't throw 500 errors
+      callback(null, false);
     }
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  optionsSuccessStatus: 200, // Important for legacy browser preflights
 };
 
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: allowedOrigins,
-    credentials: true,
-  },
+
+// 1. MUST BE FIRST: Express CORS handling for preflights
+app.use(cors(corsOptions));
+
+// 2. Security headers (Configured to avoid stripping CORS preflight headers)
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
+
+app.use(express.json());
+
+// 3. Apply rate limiter to /api EXCEPT for preflight OPTIONS requests
+app.use('/api', (req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    return next();
+  }
+  return apiLimiter(req, res, next);
 });
 
-// 1. Explicitly serve the JSON spec
-app.get('/docs/json', (req: Request, res: Response) => {
+// Swagger documentation endpoints
+app.get('/docs/json', (_req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/json');
   res.json(swaggerSpec);
 });
 
-// 2. Pass swaggerSpec directly instead of null
 const swaggerUiOptions = {
-  customCssUrl: 'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.8/swagger-ui.min.css',
+  customCssUrl:
+    'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.8/swagger-ui.min.css',
   customJs: [
     'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.8/swagger-ui-bundle.js',
     'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.8/swagger-ui-standalone-preset.js',
@@ -60,11 +89,6 @@ const swaggerUiOptions = {
 };
 
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
-
-app.use(helmet());
-app.use(cors(corsOptions));
-app.use(express.json());
-app.use('/api', apiLimiter);
 
 // Routes
 app.use('/api/v1/auth', authRoutes);
@@ -79,6 +103,14 @@ app.get('/health', async (_req: Request, res: Response) => {
   } catch (err) {
     res.status(500).json({ status: 'error', database: 'disconnected' });
   }
+});
+
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    credentials: true,
+  },
 });
 
 const PORT = process.env.PORT || 5000;
