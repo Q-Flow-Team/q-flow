@@ -113,7 +113,13 @@ const io = new Server(server, {
   },
 });
 
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`Q-Flow Backend running on port ${PORT}`);
-});
+// Only start standalone HTTP server in local development
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 5000;
+  server.listen(PORT, () => {
+    console.log(`Q-Flow Backend running on port ${PORT}`);
+  });
+}
+
+// CRITICAL FOR VERCEL: Export express app as default export
+export default app;
