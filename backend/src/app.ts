@@ -14,7 +14,7 @@ import { apiLimiter } from './middlewares/rateLimit.middleware.js';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './config/swagger.js';
 
-const defaultLocalOrigins = ['http://localhost:3000', 'http://localhost:5173'];
+const defaultLocalOrigins = ['http://localhost:3000', 'http://localhost:5173', 'https://flow-frontend-murex.vercel.app'];
 
 const envOrigins = (process.env.CLIENT_ORIGIN || '')
   .split(',')
