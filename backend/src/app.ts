@@ -14,9 +14,14 @@ import { apiLimiter } from './middlewares/rateLimit.middleware.js';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './config/swagger.js';
 
-const allowedOrigins = (process.env.CLIENT_ORIGIN, 'http://localhost:3000')
+const defaultLocalOrigins = ['http://localhost:3000', 'http://localhost:5173'];
+
+const envOrigins = (process.env.CLIENT_ORIGIN || '')
   .split(',')
-  .map((origin) => origin.trim());
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const allowedOrigins = Array.from(new Set([...defaultLocalOrigins, ...envOrigins]));
 
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
@@ -38,7 +43,6 @@ const io = new Server(server, {
     credentials: true,
   },
 });
-
 
 // 1. Explicitly serve the JSON spec
 app.get('/docs/json', (req: Request, res: Response) => {
