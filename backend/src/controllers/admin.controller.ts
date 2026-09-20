@@ -1,10 +1,11 @@
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../middlewares/auth.middleware.js';
 import { generateStaticBranchQRCode, getStaffEfficiencyMetrics, getSystemAnalytics } from '../services/admin.service.js';
-import { createCounter, getAllCounters, toggleCounterStatus, forceUnbindCounterShift, createPriorityTicket, overrideTicketStatus,} from '../services/admin.service.js';
-import { createUser, getAllUsers, resetUserPassword } from '../services/admin.service.js';
+import { createCounter, createUser, getAllUsers,
+  resetUserPassword, getAllTickets, overrideTicket,
+  getAllCounters, toggleCounterStatus, forceUnbindCounterShift, 
+  createPriorityTicket} from '../services/admin.service.js';
 import { TicketStatus, UserRole } from '@qflow/database/client';
-import {getAllTickets} from '../services/admin.service.js';
 
 /**
  * POST /api/admin/qr-code
@@ -214,29 +215,56 @@ export async function handleCreatePriorityTicket(req: AuthenticatedRequest, res:
   }
 }
 
-// PATCH /api/admin/tickets/:id/override
 export async function handleOverrideTicketStatus(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const { id } = req.params;
-    const { status, reason } = req.body;
+    const { status, customerName, phoneNumber, preferredChannel, reason } = req.body;
 
     if (typeof id !== 'string') {
       res.status(400).json({ error: 'Invalid ticket ID.' });
       return;
     }
 
-    if (!status || !VALID_STATUSES.includes(status)) {
+    if (
+      status === undefined &&
+      customerName === undefined &&
+      phoneNumber === undefined &&
+      preferredChannel === undefined
+    ) {
+      res.status(400).json({
+        error: 'At least one of status, customerName, phoneNumber, or preferredChannel must be provided.',
+      });
+      return;
+    }
+
+    if (status !== undefined && !VALID_STATUSES.includes(status)) {
       res.status(400).json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}.` });
       return;
     }
 
-    const updatedTicket = await overrideTicketStatus(id, status, reason);
+    if (preferredChannel !== undefined && !VALID_CHANNELS.includes(preferredChannel)) {
+      res.status(400).json({ error: `preferredChannel must be one of: ${VALID_CHANNELS.join(', ')}.` });
+      return;
+    }
+
+    if (customerName !== undefined && (typeof customerName !== 'string' || !customerName.trim())) {
+      res.status(400).json({ error: 'customerName must be a non-empty string.' });
+      return;
+    }
+
+    if (phoneNumber !== undefined && (typeof phoneNumber !== 'string' || !phoneNumber.trim())) {
+      res.status(400).json({ error: 'phoneNumber must be a non-empty string.' });
+      return;
+    }
+
+    const updatedTicket = await overrideTicket(id, { status, customerName, phoneNumber, preferredChannel, reason });
+
     res.status(200).json({
-      message: `Ticket status successfully overridden to ${status}.`,
+      message: 'Ticket updated successfully.',
       ticket: updatedTicket,
     });
   } catch (error: any) {
-    res.status(400).json({ error: error.message || 'Failed to override ticket status.' });
+    res.status(400).json({ error: error.message || 'Failed to update ticket.' });
   }
 }
 

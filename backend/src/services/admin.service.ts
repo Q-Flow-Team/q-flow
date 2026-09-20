@@ -267,48 +267,56 @@ export async function createPriorityTicket(data: {
 /**
  * 2. Manual Ticket State Override (Cancel, Re-queue, Force Complete, etc.)
  */
-export async function overrideTicketStatus(
-  ticketId: string,
-  newStatus: TicketStatus,
-  reason?: string
-) {
+interface TicketOverrideInput {
+  status?: TicketStatus;
+  customerName?: string;
+  phoneNumber?: string;
+  preferredChannel?: NotificationChannel;
+  reason?: string;
+}
+
+export async function overrideTicket(ticketId: string, input: TicketOverrideInput) {
   const updatedTicket = await prisma.$transaction(async (tx) => {
     const ticket = await tx.ticket.findUnique({ where: { id: ticketId } });
     if (!ticket) throw new Error('Ticket not found.');
 
-    const updateData: any = {
-      status: newStatus,
-    };
+    const updateData: any = {};
 
-    // State-specific timestamps and position resets
-    switch (newStatus) {
-      case TicketStatus.CANCELLED:
-      case TicketStatus.AUTO_CANCELLED:
-        updateData.cancelledAt = new Date();
-        updateData.currentPosition = 0;
-        break;
-      case TicketStatus.SERVED:
-        updateData.completedAt = new Date();
-        updateData.currentPosition = 0;
-        break;
-      case TicketStatus.SKIPPED:
-        updateData.skippedAt = new Date();
-        updateData.currentPosition = 0;
-        break;
-      case TicketStatus.CALLED:
-        updateData.calledAt = new Date();
-        updateData.currentPosition = 0;
-        break;
-      case TicketStatus.IN_SERVICE:
-        updateData.servicedAt = new Date();
-        updateData.currentPosition = 0;
-        break;
-      case TicketStatus.WAITING: {
-        // Re-queue ticket at the end of the line
-        const waitingCount = await tx.ticket.count({ where: { status: TicketStatus.WAITING } });
-        updateData.currentPosition = waitingCount + 1;
-        updateData.skipCount = 0; // Reset skips on manual admin re-queue
-        break;
+    if (input.customerName !== undefined) updateData.customerName = input.customerName;
+    if (input.phoneNumber !== undefined) updateData.phoneNumber = input.phoneNumber;
+    if (input.preferredChannel !== undefined) updateData.preferredChannel = input.preferredChannel;
+
+    if (input.status !== undefined) {
+      updateData.status = input.status;
+
+      switch (input.status) {
+        case TicketStatus.CANCELLED:
+        case TicketStatus.AUTO_CANCELLED:
+          updateData.cancelledAt = new Date();
+          updateData.currentPosition = 0;
+          break;
+        case TicketStatus.SERVED:
+          updateData.completedAt = new Date();
+          updateData.currentPosition = 0;
+          break;
+        case TicketStatus.SKIPPED:
+          updateData.skippedAt = new Date();
+          updateData.currentPosition = 0;
+          break;
+        case TicketStatus.CALLED:
+          updateData.calledAt = new Date();
+          updateData.currentPosition = 0;
+          break;
+        case TicketStatus.IN_SERVICE:
+          updateData.servicedAt = new Date();
+          updateData.currentPosition = 0;
+          break;
+        case TicketStatus.WAITING: {
+          const waitingCount = await tx.ticket.count({ where: { status: TicketStatus.WAITING } });
+          updateData.currentPosition = waitingCount + 1;
+          updateData.skipCount = 0;
+          break;
+        }
       }
     }
 
@@ -318,11 +326,10 @@ export async function overrideTicketStatus(
     });
   });
 
-  // Broadcast update to display boards
   broadcastQueueEvent(SOCKET_EVENTS.QUEUE_UPDATED, {
     ticketNumber: updatedTicket.ticketNumber,
     status: updatedTicket.status,
-    reason: reason || 'Admin override executed',
+    reason: input.reason || 'Admin override executed',
   });
 
   return updatedTicket;
