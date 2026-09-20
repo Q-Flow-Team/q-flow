@@ -14,7 +14,7 @@ import { apiLimiter } from './middlewares/rateLimit.middleware.js';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './config/swagger.js';
 
-const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:3000')
+const allowedOrigins = (process.env.CLIENT_ORIGIN, 'http://localhost:3000')
   .split(',')
   .map((origin) => origin.trim());
 
