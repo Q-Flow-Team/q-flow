@@ -127,6 +127,15 @@ export function useStaffSession() {
     return res?.ticket
   }
 
+  const skipTicket = async (id: string) => {
+    const res = await apiPost<{ message: string; ticket: StaffTicket }>(
+      `/staff/tickets/${id}/skip`,
+    )
+    trackTicket(res?.ticket)
+    await refresh(true)
+    return res?.ticket
+  }
+
   const reset = () => {
     overview.value = null
     sessionTickets.value = []
@@ -147,6 +156,7 @@ export function useStaffSession() {
     recallTicket,
     completeService,
     noShowTicket,
+    skipTicket,
     reset,
   }
 }

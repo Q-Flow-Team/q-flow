@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { Loader2, UserCheck, Search, Bell, XCircle, Check } from 'lucide-vue-next'
+import { Loader2, UserCheck, Search, Bell, XCircle, Check, SkipForward } from 'lucide-vue-next'
 import { formatTime, channelLabel } from '~/utils/format'
 
 const emit = defineEmits<{ selectTicket: [id: string] }>()
 
-const { overview, loading, callNext, recallTicket, completeService, noShowTicket, trackTicket, error } = useStaffSession()
+const { overview, loading, callNext, recallTicket, completeService, noShowTicket, skipTicket, trackTicket, error } = useStaffSession()
 const showToast = inject<(msg: string) => void>('showToast', () => {})
 const search = ref('')
 const filter = ref('')
 const calling = ref(false)
-const acting = ref<{ id: string; action: 'recall' | 'no-show' | 'complete' } | null>(null)
+const acting = ref<{ id: string; action: 'recall' | 'no-show' | 'complete' | 'skip' } | null>(null)
 
 const activeTicket = computed(() => overview.value?.activeTicket ?? null)
 const waitingCount = computed(() => overview.value?.waitingCount ?? 0)
@@ -37,7 +37,7 @@ const handleCallNext = async () => {
   }
 }
 
-const handleAction = async (t: any, action: 'recall' | 'no-show' | 'complete') => {
+const handleAction = async (t: any, action: 'recall' | 'no-show' | 'complete' | 'skip') => {
   acting.value = { id: t.id, action }
   try {
     const ticket =
@@ -45,9 +45,11 @@ const handleAction = async (t: any, action: 'recall' | 'no-show' | 'complete') =
         ? await recallTicket(t.id)
         : action === 'complete'
           ? await completeService(t.id)
-          : await noShowTicket(t.id)
+          : action === 'skip'
+            ? await skipTicket(t.id)
+            : await noShowTicket(t.id)
     const verb =
-      action === 'recall' ? 're-notified' : action === 'complete' ? 'completed' : 'marked as no-show'
+      action === 'recall' ? 're-notified' : action === 'complete' ? 'completed' : action === 'skip' ? 'skipped to back of queue' : 'marked as no-show'
     if (ticket) showToast(`${ticket.ticketNumber} ${verb} — ${ticket.customerName}`)
   } catch (err: any) {
     showToast(err?.message || `Failed to ${action} this customer`)
@@ -132,6 +134,16 @@ const handleSelect = (t: any) => {
             <Loader2 v-if="acting?.id === activeTicket.id && acting?.action === 'no-show'" class="h-3.5 w-3.5 animate-spin" />
             <XCircle v-else class="h-3.5 w-3.5" />
             No Show
+          </button>
+          <button
+            v-if="activeTicket.status === 'CALLED'"
+            :disabled="acting !== null"
+            class="btn btn-sm btn-outline"
+            @click="handleAction(activeTicket, 'skip')"
+          >
+            <Loader2 v-if="acting?.id === activeTicket.id && acting?.action === 'skip'" class="h-3.5 w-3.5 animate-spin" />
+            <SkipForward v-else class="h-3.5 w-3.5" />
+            Skip
           </button>
         </div>
       </div>

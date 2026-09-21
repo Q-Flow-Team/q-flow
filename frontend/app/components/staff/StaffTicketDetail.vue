@@ -4,7 +4,7 @@ import { formatTime, formatDate, formatDateTime, channelLabel } from '~/utils/fo
 
 defineEmits<{ back: [] }>()
 
-const { overview, sessionTickets, recallTicket, completeService, noShowTicket } = useStaffSession()
+const { overview, sessionTickets, recallTicket, completeService, noShowTicket, skipTicket } = useStaffSession()
 const showToast = inject<(msg: string) => void>('showToast', () => {})
 const selectedTicketId = inject<Ref<string | null>>('selectedTicketId', ref(null))
 
@@ -45,6 +45,7 @@ const run = async (fn: (id: string) => Promise<any>, message: (t: any) => string
 const handleRecall = () => run(recallTicket, (t) => `${t.ticketNumber} re-notified`)
 const handleComplete = () => run(completeService, (t) => `${t.ticketNumber} completed`)
 const handleNoShow = () => run(noShowTicket, (t) => `${t.ticketNumber} marked as no-show`)
+const handleSkip = () => run(skipTicket, (t) => `${t.ticketNumber} skipped to back of queue`)
 
 const timeline = computed(() => {
   if (!ticket.value) return []
@@ -210,6 +211,16 @@ const timeline = computed(() => {
               <Loader2 v-if="acting" class="h-4 w-4 animate-spin" />
               <XCircle v-else class="h-4 w-4" />
               No Show
+            </button>
+            <button
+              v-if="ticket.status === 'CALLED'"
+              :disabled="acting"
+              class="btn btn-md btn-outline"
+              @click="handleSkip"
+            >
+              <Loader2 v-if="acting" class="h-4 w-4 animate-spin" />
+              <SkipForward v-else class="h-4 w-4" />
+              Skip
             </button>
           </div>
         </template>
