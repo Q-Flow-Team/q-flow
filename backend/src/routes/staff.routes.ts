@@ -1,13 +1,15 @@
 import { Router } from 'express';
-import { authenticateToken } from '../middlewares/auth.middleware.js';
 import {
-  handleGetShiftOverview,
+  handleListCounters,
+  handleGetCurrentTicket,
+  handleGetQueue,
   handleCallNext,
-  handleStartService,
-  handleCompleteService,
-  handleSkipTicket,
+  handleUpdateTicketStatus,
+  handleRecallTicket,
 } from '../controllers/staff.controller.js';
+
 import { requireCounterStaff } from '../middlewares/staff.middleware.js';
+import { authenticateToken } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
@@ -16,30 +18,76 @@ router.use(authenticateToken, requireCounterStaff);
 
 /**
  * @openapi
- * /api/v1/counters/shift-overview:
+ * /api/staff/counters:
  *   get:
- *     summary: Get current shift overview and counter statistics
+ *     summary: List all counters and their assigned staff
+ *     description: Returns every counter desk, whether it's currently staffed, and who's assigned — used to populate the active-desk selector.
  *     tags: [Counter Staff]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Counter shift details and queue statistics retrieved
+ *         description: List of counters retrieved
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 counterNumber:
- *                   type: integer
- *                   example: 1
- *                 counterName:
- *                   type: string
- *                   example: Teller 1
- *                 servedCount:
- *                   type: integer
- *                   example: 14
- *                 currentTicket:
+ *                 counters:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       employeeId:
+ *                         type: string
+ *                         example: EMP-2201
+ *                       fullName:
+ *                         type: string
+ *                         example: Ama Boateng
+ *                       role:
+ *                         type: string
+ *                         example: COUNTER_STAFF
+ *                       activeCounter:
+ *                         type: string
+ *                         nullable: true
+ *                         example: Teller 1
+ *                       counterNumber:
+ *                         type: integer
+ *                         example: 1
+ *                       isOnline:
+ *                         type: boolean
+ *                         example: true
+ *       401:
+ *         description: Unauthorized - missing or invalid JWT token
+ *       403:
+ *         description: Forbidden - requires counter staff role
+ */
+router.get('/counters', handleListCounters);
+
+/**
+ * @openapi
+ * /api/staff/counters/{employeeId}/current-ticket:
+ *   get:
+ *     summary: Get the ticket currently being served at a counter
+ *     tags: [Counter Staff]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: employeeId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Employee ID of the staff member assigned to the counter
+ *     responses:
+ *       200:
+ *         description: Current ticket for the counter, or null if the desk is idle
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 ticket:
  *                   type: object
  *                   nullable: true
  *                   properties:
@@ -47,36 +95,104 @@ router.use(authenticateToken, requireCounterStaff);
  *                       type: string
  *                     ticketNumber:
  *                       type: string
- *                       example: A-102
+ *                       example: A-103
+ *                     customerName:
+ *                       type: string
+ *                       example: Kojo Mensah
+ *                     phoneNumber:
+ *                       type: string
+ *                       example: "+233201234567"
  *                     status:
  *                       type: string
+ *                       enum: [WAITING, CALLED, IN_SERVICE, SERVED, SKIPPED, CANCELLED, AUTO_CANCELLED]
  *                       example: IN_SERVICE
+ *                     preferredChannel:
+ *                       type: string
+ *                       enum: [WHATSAPP, SMS, NONE]
+ *                       example: WHATSAPP
  *       401:
- *         description: Unauthorized - missing or invalid JWT token
+ *         description: Unauthorized
  *       403:
  *         description: Forbidden - requires counter staff role
+ *       404:
+ *         description: Counter not found for the given employee
  */
-router.get('/shift-overview', handleGetShiftOverview);
+router.get('/counters/:employeeId/current-ticket', handleGetCurrentTicket);
 
 /**
  * @openapi
- * /api/v1/counters/call-next:
- *   post:
- *     summary: Call the next ticket in line to the active counter
+ * /api/staff/counters/{employeeId}/queue:
+ *   get:
+ *     summary: Get the list of tickets waiting to be called to this counter
  *     tags: [Counter Staff]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: employeeId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Employee ID of the staff member assigned to the counter
  *     responses:
  *       200:
- *         description: Next ticket successfully assigned to counter
+ *         description: Waiting queue retrieved
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 message:
- *                   type: string
- *                   example: Ticket called successfully
+ *                 tickets:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       ticketNumber:
+ *                         type: string
+ *                         example: A-104
+ *                       customerName:
+ *                         type: string
+ *                         example: Efua Owusu
+ *                       status:
+ *                         type: string
+ *                         example: WAITING
+ *                       joinedAt:
+ *                         type: string
+ *                         format: date-time
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - requires counter staff role
+ *       404:
+ *         description: Counter not found for the given employee
+ */
+router.get('/counters/:employeeId/queue', handleGetQueue);
+
+/**
+ * @openapi
+ * /api/staff/counters/{employeeId}/call-next:
+ *   post:
+ *     summary: Call the next waiting ticket to this counter
+ *     tags: [Counter Staff]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: employeeId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Employee ID of the staff member assigned to the counter
+ *     responses:
+ *       200:
+ *         description: Next ticket successfully called to the counter
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
  *                 ticket:
  *                   type: object
  *                   properties:
@@ -84,22 +200,25 @@ router.get('/shift-overview', handleGetShiftOverview);
  *                       type: string
  *                     ticketNumber:
  *                       type: string
- *                       example: A-103
+ *                       example: A-105
  *                     status:
  *                       type: string
  *                       example: CALLED
  *       401:
  *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - requires counter staff role
  *       404:
- *         description: No waiting tickets in queue
+ *         description: No waiting tickets in queue, or counter not found
  */
-router.post('/call-next', handleCallNext);
+router.post('/counters/:employeeId/call-next', handleCallNext);
 
 /**
  * @openapi
- * /api/v1/counters/tickets/{id}/start:
- *   post:
- *     summary: Mark ticket service as started
+ * /api/staff/tickets/{id}/status:
+ *   patch:
+ *     summary: Update a ticket's status
+ *     description: Generic status transition endpoint — e.g. marking a ticket SERVED, CANCELLED, or SKIPPED.
  *     tags: [Counter Staff]
  *     security:
  *       - bearerAuth: []
@@ -110,9 +229,21 @@ router.post('/call-next', handleCallNext);
  *         schema:
  *           type: string
  *         description: Unique ticket ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [WAITING, CALLED, IN_SERVICE, SERVED, SKIPPED, CANCELLED, AUTO_CANCELLED]
+ *                 example: SERVED
  *     responses:
  *       200:
- *         description: Ticket service marked as in progress
+ *         description: Ticket status updated
  *         content:
  *           application/json:
  *             schema:
@@ -125,21 +256,24 @@ router.post('/call-next', handleCallNext);
  *                   example: A-103
  *                 status:
  *                   type: string
- *                   example: IN_SERVICE
+ *                   example: SERVED
  *       400:
- *         description: Ticket cannot be started from current status
+ *         description: Invalid status value or illegal transition from current status
  *       401:
  *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - requires counter staff role
  *       404:
  *         description: Ticket not found
  */
-router.post('/tickets/:id/start', handleStartService);
+router.patch('/tickets/:id/status', handleUpdateTicketStatus);
 
 /**
  * @openapi
- * /api/v1/counters/tickets/{id}/complete:
+ * /api/staff/tickets/{id}/recall:
  *   post:
- *     summary: Mark ticket service as completed
+ *     summary: Re-send the counter-call notification for a ticket
+ *     description: Re-notifies the customer (via their preferred channel) that they're being called, without changing ticket status.
  *     tags: [Counter Staff]
  *     security:
  *       - bearerAuth: []
@@ -152,65 +286,22 @@ router.post('/tickets/:id/start', handleStartService);
  *         description: Unique ticket ID
  *     responses:
  *       200:
- *         description: Ticket service completed
+ *         description: Notification re-sent successfully
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 id:
+ *                 message:
  *                   type: string
- *                 ticketNumber:
- *                   type: string
- *                   example: A-103
- *                 status:
- *                   type: string
- *                   example: COMPLETED
- *       400:
- *         description: Ticket cannot be completed from current status
+ *                   example: Customer re-notified successfully.
  *       401:
  *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - requires counter staff role
  *       404:
  *         description: Ticket not found
  */
-router.post('/tickets/:id/complete', handleCompleteService);
-
-/**
- * @openapi
- * /api/v1/counters/tickets/{id}/skip:
- *   post:
- *     summary: Skip a ticket (e.g., customer no-show)
- *     tags: [Counter Staff]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Unique ticket ID
- *     responses:
- *       200:
- *         description: Ticket skipped successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 id:
- *                   type: string
- *                 ticketNumber:
- *                   type: string
- *                   example: A-103
- *                 status:
- *                   type: string
- *                   example: SKIPPED
- *       401:
- *         description: Unauthorized
- *       404:
- *         description: Ticket not found
- */
-router.post('/tickets/:id/skip', handleSkipTicket);
+router.post('/tickets/:id/recall', handleRecallTicket);
 
 export default router;
