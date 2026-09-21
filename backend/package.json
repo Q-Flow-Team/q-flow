@@ -11,6 +11,7 @@
     "start": "node dist/app.js"
   },
   "dependencies": {
+    "@prisma/client": "^6.4.0",
     "@prisma/adapter-pg": "^7.10.0",
     "@qflow/database": "file:../database",
     "bcrypt": "^6.0.0",
