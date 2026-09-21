@@ -15,7 +15,6 @@ import adminRoutes from './routes/admin.routes.js';
 import staffRoutes from './routes/staff.routes.js';
 import { apiLimiter } from './middlewares/rateLimit.middleware.js';
 
-// Extend Express Request interface locally to include io
 declare global {
   namespace Express {
     interface Request {
@@ -24,12 +23,12 @@ declare global {
   }
 }
 
-// 1. Configure Allowed Origins
+// 1. Origins Setup
 const defaultOrigins = ['http://localhost:3000', 'http://localhost:5173'];
 
 const envOrigins = (process.env.CLIENT_ORIGIN || '')
   .split(',')
-  .map((origin) => origin.trim().replace(/\/$/, '')) // Strip trailing slashes
+  .map((origin) => origin.trim().replace(/\/$/, ''))
   .filter(Boolean);
 
 const allowedOrigins = Array.from(
@@ -38,44 +37,40 @@ const allowedOrigins = Array.from(
 
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
+    // Non-browser requests (Postman, server-to-server) have no origin
     if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ''))) {
       callback(null, true);
     } else {
-      callback(new Error(`Origin ${origin} not permitted by CORS.`));
+      // Do NOT pass an Error object here - it crashes Express / Vercel Serverless
+      callback(null, false);
     }
   },
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  optionsSuccessStatus: 200, // Important for legacy browser & proxy preflights
+  optionsSuccessStatus: 200,
 };
 
-
-// 2. Initialize Express App & HTTP Server
 const app = express();
 const server = http.createServer(app);
 
-// 3. Initialize Socket.io Server
+// 2. Socket.io Setup
 export const io = new Server(server, {
   cors: corsOptions,
 });
 
-// Enable pre-flight checks across all routes
-app.options('*', cors(corsOptions));
-
-// Attach io instance to Express app & request pipeline
 app.set('io', io);
 app.use((req: Request, _res: Response, next: NextFunction) => {
   req.io = io;
   next();
 });
 
-// 4. Global Middlewares
-app.use(helmet({ contentSecurityPolicy: false })); // Disabled CSP for Swagger CDN compatibility
+// 3. Global CORS & Security (MUST be top of middleware chain)
 app.use(cors(corsOptions));
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json());
 
-// 5. Apply Rate Limiter
+// 4. Rate Limiting
 app.use('/api', (req: Request, res: Response, next: NextFunction) => {
   if (req.method === 'OPTIONS') {
     return next();
@@ -83,7 +78,7 @@ app.use('/api', (req: Request, res: Response, next: NextFunction) => {
   return apiLimiter(req, res, next);
 });
 
-// 6. Documentation Endpoints
+// 5. Documentation
 app.get('/docs/json', (_req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/json');
   res.json(swaggerSpec);
@@ -100,13 +95,13 @@ const swaggerUiOptions = {
 
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
 
-// 7. API Routes
+// 6. Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/tickets', ticketRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/staff', staffRoutes);
 
-// 8. Health Check Endpoint
+// 7. Health Check
 app.get('/health', async (_req: Request, res: Response) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
@@ -116,7 +111,15 @@ app.get('/health', async (_req: Request, res: Response) => {
   }
 });
 
-// 9. Start Standalone Server (Local Dev)
+// 8. Global Error Handler (Prevents unhandled crashes on Vercel)
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('Unhandled Error:', err);
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal Server Error',
+  });
+});
+
+// 9. Local Development Server
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 5000;
   server.listen(PORT, () => {
@@ -124,6 +127,5 @@ if (process.env.NODE_ENV !== 'production') {
   });
 }
 
-// Export server & app for serverless or testing environments
 export { server };
 export default app;
