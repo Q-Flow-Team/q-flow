@@ -6,6 +6,8 @@ import {
   markTicketInService,
   markTicketServed,
   getStaffShiftOverview,
+  getStaffHistory,
+  getCountersForStaff,
 } from '../services/ticket.service.js';
 import { getSafeErrorMessage } from '../utils/errorHandler.js';
 
@@ -23,6 +25,34 @@ export async function handleGetShiftOverview(req: AuthenticatedRequest, res: Res
   } catch (error: any) {
     console.error('Get shift overview failed:', error);
     res.status(400).json({ error: getSafeErrorMessage(error, 'Failed to retrieve shift overview.') });
+  }
+}
+
+// GET /api/staff/counters
+export async function handleGetCounters(_req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const counters = await getCountersForStaff();
+    res.status(200).json({ counters });
+  } catch (error: any) {
+    console.error('Get counters failed:', error);
+    res.status(500).json({ error: getSafeErrorMessage(error, 'Failed to retrieve counters.') });
+  }
+}
+
+// GET /api/staff/history
+export async function handleGetStaffHistory(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const staffId = req.user?.userId;
+    if (!staffId) {
+      res.status(401).json({ error: 'Unauthorized.' });
+      return;
+    }
+
+    const tickets = await getStaffHistory(staffId);
+    res.status(200).json({ tickets });
+  } catch (error: any) {
+    console.error('Get staff history failed:', error);
+    res.status(400).json({ error: getSafeErrorMessage(error, 'Failed to retrieve ticket history.') });
   }
 }
 

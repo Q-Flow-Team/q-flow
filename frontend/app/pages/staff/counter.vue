@@ -2,11 +2,11 @@
 import { Loader2, Unlink, Copy, Check } from 'lucide-vue-next'
 import { apiGet, apiPost } from '~/utils/api'
 
-definePageMeta({ layout: false, middleware: 'auth' })
+definePageMeta({ layout: false })
 
 const { user, logout, setUser } = useAuth()
 
-const counters = ref<Array<{ id: string; counterNumber: number; counterName: string; isActive: boolean; currentStaffId: string | null }>>([])
+const counters = ref<Array<{ id: string; counterNumber: number; counterName: string; isActive: boolean; currentStaff: { id: string } | null }>>([])
 const sel = ref<string | null>(null)
 const manualId = ref('')
 const loading = ref(true)
@@ -20,7 +20,7 @@ const activeCounter = computed(() => user.value?.activeCounter ?? null)
 const loadCounters = async () => {
   loading.value = true
   try {
-    const res = await apiGet<{ counters: any[] }>('/admin/counters')
+    const res = await apiGet<{ counters: any[] }>('/staff/counters')
     counters.value = res.counters || []
     listForbidden.value = false
   } catch (err: any) {
@@ -37,7 +37,7 @@ const loadCounters = async () => {
 onMounted(loadCounters)
 
 const availableCounters = computed(() =>
-  counters.value.filter((c) => c.isActive && (!c.currentStaffId || c.currentStaffId === user.value?.id)),
+  counters.value.filter((c) => c.isActive && (!c.currentStaff || c.currentStaff.id === user.value?.id)),
 )
 
 const bind = async (counterId: string) => {
@@ -67,7 +67,7 @@ const handleUnbind = async () => {
   try {
     await logout()
   } finally {
-    navigateTo('/login')
+    navigateTo('/')
   }
 }
 

@@ -168,6 +168,9 @@ body {
   .btn-sm {
     @apply px-4 py-2.5 text-sm;
   }
+  .btn-xs {
+    @apply px-2.5 py-1.5 text-xs;
+  }
   .btn-md {
     @apply px-5 py-3 text-sm;
   }
@@ -218,7 +221,7 @@ body {
   }
 }
 
-/* Gmail-style hovered rows: an elevated row with a shadow dropping beneath it */
+/* Gmail-style hovered rows: a full-width, seamless dark shadow dropping beneath the row */
 .table-gmail {
   border-collapse: separate;
   border-spacing: 0;
@@ -227,15 +230,20 @@ body {
   transition: background-color 0.15s ease;
 }
 .table-gmail tbody tr:hover {
-  background-color: transparent;
+  position: relative;
+  z-index: 2;
+  background-color: var(--color-card);
+  box-shadow:
+    0 1px 3px -1px rgb(17 24 39 / 0.35),
+    0 10px 24px -8px rgb(17 24 39 / 0.55);
 }
 .table-gmail tbody tr:hover td {
   position: relative;
   z-index: 1;
   background-color: var(--color-card);
-  box-shadow:
-    0 1px 2px -1px rgb(17 24 39 / 0.08),
-    0 10px 18px -10px rgb(17 24 39 / 0.28);
+}
+.table-gmail tbody tr:hover th {
+  background-color: var(--color-card);
 }
 
 /* Hover shadow for list rows (non-table layouts) */

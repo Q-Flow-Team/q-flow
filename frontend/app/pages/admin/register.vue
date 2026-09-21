@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import { Loader2 } from 'lucide-vue-next'
+import { Loader2, Eye, EyeOff } from 'lucide-vue-next'
 import { apiPost } from '~/utils/api'
-import { trim, isValidEmail, isValidName, passwordIssues, emailMessage, nameMessage } from '~/utils/validate'
+import { trim, isValidEmployeeId, isValidName, passwordIssues, employeeIdMessage, nameMessage } from '~/utils/validate'
 
-definePageMeta({ layout: false, middleware: 'auth' })
+definePageMeta({ layout: false })
 
-const email = ref('')
+const employeeId = ref('')
 const fullName = ref('')
 const pw = ref('')
 const confirmPw = ref('')
+const showPw = ref(false)
+const showConfirmPw = ref(false)
 const err = ref('')
-const fieldErrors = ref<{ email: string; fullName: string; pw: string; confirmPw: string }>({
-  email: '',
+const fieldErrors = ref<{ employeeId: string; fullName: string; pw: string; confirmPw: string }>({
+  employeeId: '',
   fullName: '',
   pw: '',
   confirmPw: '',
@@ -20,10 +22,10 @@ const touched = ref<Record<string, boolean>>({})
 const loading = ref(false)
 
 const validate = (field: string) => {
-  const errors: typeof fieldErrors.value = { email: '', fullName: '', pw: '', confirmPw: '' }
-  const ev = trim(email.value)
-  if (!ev) errors.email = 'Email is required.'
-  else if (!isValidEmail(ev)) errors.email = emailMessage(ev)
+  const errors: typeof fieldErrors.value = { employeeId: '', fullName: '', pw: '', confirmPw: '' }
+  const ev = trim(employeeId.value)
+  if (!ev) errors.employeeId = 'Employee ID is required.'
+  else if (!isValidEmployeeId(ev)) errors.employeeId = employeeIdMessage(ev)
   if (!trim(fullName.value)) errors.fullName = 'Full name is required.'
   else if (!isValidName(fullName.value)) errors.fullName = nameMessage(fullName.value)
   const pwIssues = passwordIssues(pw.value)
@@ -40,14 +42,14 @@ const validateField = (field: string) => {
 }
 
 const handleSubmit = async () => {
-  const errors = validate('email')
-  touched.value = { email: true, fullName: true, pw: true, confirmPw: true }
+  const errors = validate('employeeId')
+  touched.value = { employeeId: true, fullName: true, pw: true, confirmPw: true }
   if (Object.values(errors).some(Boolean)) return
   err.value = ''
   loading.value = true
   try {
     await apiPost('/admin/users', {
-      email: trim(email.value).toLowerCase(),
+      employeeId: trim(employeeId.value),
       fullName: trim(fullName.value),
       password: pw.value,
       role: 'ADMIN',
@@ -72,17 +74,17 @@ const handleSubmit = async () => {
         </div>
         <form @submit.prevent="handleSubmit" class="space-y-4">
           <div class="space-y-1.5">
-            <label class="block text-sm font-semibold text-foreground">Email</label>
+            <label class="block text-sm font-semibold text-foreground">Employee ID</label>
             <input
-              v-model="email"
-              type="email"
-              autocomplete="email"
-              :class="['w-full px-3 py-2.5 rounded-md border bg-input-bg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm', touched.email && fieldErrors.email ? 'border-danger' : 'border-border']"
-              placeholder="e.g. admin@qflow.com"
-              @blur="validateField('email')"
-              @input="touched.email && validateField('email')"
+              v-model="employeeId"
+              type="text"
+              autocomplete="username"
+              :class="['w-full px-3 py-2.5 rounded-md border bg-input-bg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm', touched.employeeId && fieldErrors.employeeId ? 'border-danger' : 'border-border']"
+              placeholder="e.g. ADM-002"
+              @blur="validateField('employeeId')"
+              @input="touched.employeeId && validateField('employeeId')"
             />
-            <p v-if="touched.email && fieldErrors.email" class="text-xs text-danger">{{ fieldErrors.email }}</p>
+            <p v-if="touched.employeeId && fieldErrors.employeeId" class="text-xs text-danger">{{ fieldErrors.employeeId }}</p>
           </div>
           <div class="space-y-1.5">
             <label class="block text-sm font-semibold text-foreground">Full Name</label>
@@ -98,28 +100,48 @@ const handleSubmit = async () => {
           </div>
           <div class="space-y-1.5">
             <label class="block text-sm font-semibold text-foreground">Password</label>
-            <input
-              v-model="pw"
-              type="password"
-              autocomplete="new-password"
-              :class="['w-full px-3 py-2.5 rounded-md border bg-input-bg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm', touched.pw && fieldErrors.pw ? 'border-danger' : 'border-border']"
-              placeholder="At least 8 chars, one letter and one number"
-              @blur="validateField('pw')"
-              @input="touched.pw && validateField('pw')"
-            />
+            <div class="relative">
+              <input
+                v-model="pw"
+                :type="showPw ? 'text' : 'password'"
+                autocomplete="new-password"
+                :class="['w-full px-3 py-2.5 rounded-md border bg-input-bg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm pr-10', touched.pw && fieldErrors.pw ? 'border-danger' : 'border-border']"
+                placeholder="At least 8 chars, one letter and one number"
+                @blur="validateField('pw')"
+                @input="touched.pw && validateField('pw')"
+              />
+              <button
+                type="button"
+                class="absolute inset-y-0 right-0 flex w-10 cursor-pointer items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                :aria-label="showPw ? 'Hide password' : 'Show password'"
+                @click="showPw = !showPw"
+              >
+                <component :is="showPw ? EyeOff : Eye" class="h-4 w-4" />
+              </button>
+            </div>
             <p v-if="touched.pw && fieldErrors.pw" class="text-xs text-danger">{{ fieldErrors.pw }}</p>
           </div>
           <div class="space-y-1.5">
             <label class="block text-sm font-semibold text-foreground">Confirm Password</label>
-            <input
-              v-model="confirmPw"
-              type="password"
-              autocomplete="new-password"
-              :class="['w-full px-3 py-2.5 rounded-md border bg-input-bg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm', touched.confirmPw && fieldErrors.confirmPw ? 'border-danger' : 'border-border']"
-              placeholder="Re-enter password"
-              @blur="validateField('confirmPw')"
-              @input="touched.confirmPw && validateField('confirmPw')"
-            />
+            <div class="relative">
+              <input
+                v-model="confirmPw"
+                :type="showConfirmPw ? 'text' : 'password'"
+                autocomplete="new-password"
+                :class="['w-full px-3 py-2.5 rounded-md border bg-input-bg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm pr-10', touched.confirmPw && fieldErrors.confirmPw ? 'border-danger' : 'border-border']"
+                placeholder="Re-enter password"
+                @blur="validateField('confirmPw')"
+                @input="touched.confirmPw && validateField('confirmPw')"
+              />
+              <button
+                type="button"
+                class="absolute inset-y-0 right-0 flex w-10 cursor-pointer items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                :aria-label="showConfirmPw ? 'Hide password' : 'Show password'"
+                @click="showConfirmPw = !showConfirmPw"
+              >
+                <component :is="showConfirmPw ? EyeOff : Eye" class="h-4 w-4" />
+              </button>
+            </div>
             <p v-if="touched.confirmPw && fieldErrors.confirmPw" class="text-xs text-danger">{{ fieldErrors.confirmPw }}</p>
           </div>
           <div v-if="err" class="flex items-start gap-2.5 p-3 bg-danger-light border border-danger-light-border rounded-md">

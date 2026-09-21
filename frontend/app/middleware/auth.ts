@@ -5,12 +5,12 @@ export default defineNuxtRouteMiddleware((to) => {
   const path = to.path
 
   if (path.startsWith('/admin')) {
-    if (!isAuthenticated.value) return navigateTo('/login')
+    if (!isAuthenticated.value) return navigateTo('/')
     if (!isAdmin.value) return navigateTo('/staff')
   }
 
   if (path.startsWith('/staff')) {
-    if (!isAuthenticated.value) return navigateTo('/login')
+    if (!isAuthenticated.value) return navigateTo('/')
     if (!isStaff.value) return navigateTo('/admin')
   }
 })

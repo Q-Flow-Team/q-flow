@@ -6,6 +6,8 @@ import {
   handleStartService,
   handleCompleteService,
   handleSkipTicket,
+  handleGetStaffHistory,
+  handleGetCounters,
 } from '../controllers/staff.controller.js';
 import { requireCounterStaff } from '../middlewares/staff.middleware.js';
 
@@ -57,6 +59,8 @@ router.use(authenticateToken, requireCounterStaff);
  *         description: Forbidden - requires counter staff role
  */
 router.get('/shift-overview', handleGetShiftOverview);
+router.get('/history', handleGetStaffHistory);
+router.get('/counters', handleGetCounters);
 
 /**
  * @openapi

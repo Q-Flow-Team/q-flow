@@ -375,13 +375,45 @@ export async function getStaffShiftOverview(staffId: string) {
     },
   });
 
-  const waitingCount = await prisma.ticket.count({
+  const waitingTickets = await prisma.ticket.findMany({
     where: { status: TicketStatus.WAITING },
+    orderBy: { currentPosition: 'asc' },
   });
 
   return {
     counter,
     activeTicket: currentCalledTicket,
-    waitingCount,
+    waitingCount: waitingTickets.length,
+    waiting: waitingTickets,
   };
+}
+
+//-------------List counters available for shift binding (staff-accessible)---------------
+export async function getCountersForStaff() {
+  return prisma.counter.findMany({
+    orderBy: { counterNumber: 'asc' },
+    include: {
+      currentStaff: {
+        select: { id: true, employeeId: true, fullName: true },
+      },
+    },
+  });
+}
+
+//-------------Terminal tickets previously handled by a staff member---------------
+export async function getStaffHistory(staffId: string) {
+  return prisma.ticket.findMany({
+    where: {
+      servicedByStaffId: staffId,
+      status: {
+        in: [
+          TicketStatus.SERVED,
+          TicketStatus.SKIPPED,
+          TicketStatus.CANCELLED,
+          TicketStatus.AUTO_CANCELLED,
+        ],
+      },
+    },
+    orderBy: { joinedAt: 'desc' },
+  });
 }

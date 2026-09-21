@@ -13,20 +13,18 @@ export function useMockApi(): boolean {
   try {
     const config = useRuntimeConfig()
     const raw = config.public.useMock
-    return raw !== false && String(raw).toLowerCase() !== 'false'
+    return raw === true || String(raw).toLowerCase() === 'true'
   } catch {
-    return true
+    return false
   }
 }
 
 export function resolveApiBase(): string {
   try {
     const config = useRuntimeConfig()
-    const base = (config.public.apiBase as string) || FALLBACK_BASE
-    if (import.meta.server) return base
-    return '/api/v1'
+    return ((config.public.apiBase as string) || FALLBACK_BASE).replace(/\/$/, '')
   } catch {
-    return import.meta.server ? FALLBACK_BASE : '/api/v1'
+    return FALLBACK_BASE
   }
 }
 
@@ -65,15 +63,38 @@ export function clearStoredAuth() {
   localStorage.removeItem(USER_KEY)
 }
 
+/**
+ * Coerce whatever the API threw into a meaningful, human-readable string.
+ * Guards against booleans/objects leaking into the UI (e.g. a raw `true`).
+ */
+function toMessage(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed ? trimmed : null
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const msg = toMessage(item)
+      if (msg) return msg
+    }
+    return null
+  }
+  if (value && typeof value === 'object') {
+    const obj = value as Record<string, unknown>
+    return toMessage(obj.error) || toMessage(obj.message) || toMessage(obj.detail)
+  }
+  return null
+}
+
 function normalizeError(err: any): ApiError {
   const status: number = err?.response?.status ?? err?.statusCode ?? err?.status ?? 0
   const data = err?.data ?? err?.response?._data
-  const message: string =
-    (typeof data === 'string' && data) ||
-    data?.error ||
-    data?.message ||
-    err?.statusMessage ||
-    err?.message ||
+  const message =
+    toMessage(data) ||
+    toMessage(err?.data) ||
+    toMessage(err?.response?._data) ||
+    toMessage(err?.statusMessage) ||
+    toMessage(err?.message) ||
     'Something went wrong. Please try again.'
   return { status, message }
 }
