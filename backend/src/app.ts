@@ -25,7 +25,7 @@ declare global {
 
 
 const app = express();
-app.use(cors());
+//app.use(cors());
 const server = http.createServer(app);
 
 // 2. Socket.io Setup
@@ -38,14 +38,14 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   next();
 });
 
-app.options('*', cors());
 
 // 3. Global CORS & Security (MUST be top of middleware chain)
 
-app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json());
 
-// 4. Rate Limiting
+/* 4. Rate Limiting
+app.options('*', cors());
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use('/api', (req: Request, res: Response, next: NextFunction) => {
   if (req.method === 'OPTIONS') {
     return next();
@@ -69,7 +69,7 @@ const swaggerUiOptions = {
 };
 
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
-
+*/
 // 6. Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/tickets', ticketRoutes);
