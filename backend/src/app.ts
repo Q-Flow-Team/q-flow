@@ -23,13 +23,15 @@ declare global {
   }
 }
 
-
 const app = express();
-//app.use(cors());
 const server = http.createServer(app);
 
-// 2. Socket.io Setup
+// 1. Socket.io Setup with CORS
 export const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  },
 });
 
 app.set('io', io);
@@ -38,14 +40,15 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   next();
 });
 
-
-// 3. Global CORS & Security (MUST be top of middleware chain)
-
-app.use(express.json());
-
-/* 4. Rate Limiting
+// 2. Security & Global CORS (MUST be at the top of the middleware chain)
+app.use(cors());
 app.options('*', cors());
 app.use(helmet({ contentSecurityPolicy: false }));
+
+// 3. Body Parsing
+app.use(express.json());
+
+// 4. Rate Limiting (Bypasses preflight OPTIONS requests)
 app.use('/api', (req: Request, res: Response, next: NextFunction) => {
   if (req.method === 'OPTIONS') {
     return next();
@@ -69,7 +72,7 @@ const swaggerUiOptions = {
 };
 
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
-*/
+
 // 6. Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/tickets', ticketRoutes);
@@ -86,7 +89,7 @@ app.get('/health', async (_req: Request, res: Response) => {
   }
 });
 
-// 8. Global Error Handler (Prevents unhandled crashes on Vercel)
+// 8. Global Error Handler
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   console.error('Unhandled Error:', err);
   res.status(err.status || 500).json({
