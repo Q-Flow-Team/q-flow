@@ -120,7 +120,7 @@ const handleSubmit = async () => {
                 :type="showPw ? 'text' : 'password'"
                 autocomplete="new-password"
                 :class="['w-full rounded-lg border bg-input-bg py-2.5 pl-10 pr-10 text-sm text-foreground placeholder:text-muted-foreground transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent', touched.pw && fieldErrors.pw ? 'border-danger' : 'border-border']"
-                placeholder="At least 8 chars, one letter and one number"
+                placeholder="At least 8 chars, upper + lower + number"
                 @blur="validateField('pw')"
                 @input="touched.pw && validateField('pw')"
               />

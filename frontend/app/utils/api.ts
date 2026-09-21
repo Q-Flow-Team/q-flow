@@ -1,5 +1,3 @@
-import { handleMockRequest } from '~/utils/mockApi'
-
 export interface ApiError {
   status: number
   message: string
@@ -8,16 +6,6 @@ export interface ApiError {
 const TOKEN_KEY = 'qflow_token'
 const USER_KEY = 'qflow_user'
 const FALLBACK_BASE = '/api/v1'
-
-export function useMockApi(): boolean {
-  try {
-    const config = useRuntimeConfig()
-    const raw = config.public.useMock
-    return raw === true || String(raw).toLowerCase() === 'true'
-  } catch {
-    return false
-  }
-}
 
 export function resolveApiBase(): string {
   try {
@@ -99,20 +87,38 @@ function normalizeError(err: any): ApiError {
   return { status, message }
 }
 
+function isSessionError(status: number, message: string): boolean {
+  if (status === 401) return true
+  if (status === 403 && /token|expired|authorization/i.test(message)) return true
+  return false
+}
+
+function clearSessionAuth() {
+  if (import.meta.server) return
+  clearStoredAuth()
+  try {
+    const token = useState('qflow-auth-token')
+    const user = useState('qflow-auth-user')
+    if (token && typeof token.value === 'string') token.value = null
+    if (user && user.value) user.value = null
+  } catch {
+    // Nuxt state unavailable — storage was already cleared.
+  }
+  if (
+    typeof window !== 'undefined' &&
+    window.location.pathname !== '/' &&
+    !window.location.pathname.startsWith('/ticket')
+  ) {
+    window.location.assign('/')
+  }
+}
+
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
 
 export async function apiRequest<T = any>(
   path: string,
   options: { method?: HttpMethod; body?: any; query?: Record<string, any> } = {},
 ): Promise<T> {
-  if (useMockApi()) {
-    try {
-      return await handleMockRequest<T>(path, options.method || 'GET', options.body, options.query, getToken())
-    } catch (err) {
-      throw normalizeError(err)
-    }
-  }
-
   const base = resolveApiBase().replace(/\/$/, '')
   const token = getToken()
   const headers: Record<string, string> = { Accept: 'application/json' }
@@ -135,7 +141,11 @@ export async function apiRequest<T = any>(
       body: options.body,
     })
   } catch (err) {
-    throw normalizeError(err)
+    const normalized = normalizeError(err)
+    if (token && isSessionError(normalized.status, normalized.message)) {
+      clearSessionAuth()
+    }
+    throw normalized
   }
 }
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { QrCode, Download, Loader2 } from 'lucide-vue-next'
 import QRCode from 'qrcode'
+import { apiRequest } from '~/utils/api'
 import { trim, isValidUrl } from '~/utils/validate'
 
 const showToast = inject<(msg: string) => void>('showToast', () => {})
@@ -8,11 +9,17 @@ const showToast = inject<(msg: string) => void>('showToast', () => {})
 const DEFAULT_SITE = 'KFC'
 const URL_KEY = 'qflow_checkin_url'
 
+interface QrAssets {
+  targetUrl: string
+  pngDataUrl: string
+  svgString?: string
+}
+
 const urlInput = ref('')
 const urlError = ref('')
 const urlTouched = ref(false)
 const generating = ref(false)
-const qr = ref<{ targetUrl: string; pngDataUrl: string } | null>(null)
+const qr = ref<QrAssets | null>(null)
 
 const validateUrl = () => {
   const v = trim(urlInput.value)
@@ -41,12 +48,23 @@ const generate = async () => {
   }
   generating.value = true
   try {
-    const pngDataUrl = await QRCode.toDataURL(targetUrl.value, {
-      errorCorrectionLevel: 'H',
-      margin: 2,
-      width: 1024,
-    })
-    qr.value = { targetUrl: targetUrl.value, pngDataUrl }
+    let assets: QrAssets
+    try {
+      const res = await apiRequest<{ message: string; data: QrAssets }>('/admin/qr-code', {
+        method: 'GET',
+        body: { checkInUrl: targetUrl.value },
+      })
+      assets = res.data
+    } catch {
+      // Backend generation unavailable — fall back to in-browser generation.
+      const pngDataUrl = await QRCode.toDataURL(targetUrl.value, {
+        errorCorrectionLevel: 'H',
+        margin: 2,
+        width: 1024,
+      })
+      assets = { targetUrl: targetUrl.value, pngDataUrl }
+    }
+    qr.value = assets
   } catch {
     showToast('Failed to generate QR code')
   } finally {

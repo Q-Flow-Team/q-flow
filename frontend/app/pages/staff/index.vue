@@ -5,7 +5,7 @@ import { LayoutDashboard, List, History } from 'lucide-vue-next'
 definePageMeta({ layout: false })
 
 const { user, logout } = useAuth()
-const { overview, refresh, fetchHistory, shiftRequired, reset } = useStaffSession()
+const { overview, refresh, shiftRequired, reset } = useStaffSession()
 
 const activePage = ref('overview')
 const selectedTicketId = ref<string | null>(null)
@@ -52,7 +52,6 @@ onMounted(async () => {
     navigateTo('/staff/counter')
     return
   }
-  fetchHistory()
   timer = setInterval(() => refresh(true), 8000)
 })
 

@@ -79,7 +79,6 @@ const handleSubmit = async () => {
                   type="text"
                   autocomplete="username"
                   :class="['w-full rounded-lg border bg-input-bg py-2.5 pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent', fieldErrors.employeeId ? 'border-danger' : 'border-border']"
-                  placeholder="e.g. ADM-001"
                   @blur="validateField('employeeId')"
                   @input="touched.employeeId && validateField('employeeId')"
                 />

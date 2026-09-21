@@ -8,8 +8,7 @@ and share suggestions.
 
 ## 1. How to open the app
 
-The app runs in **demo mode**, so you can test everything without needing a real
-server or database.
+The app connects to the **live backend**, so sign-in uses the accounts provisioned there.
 
 1. Ask a developer to start the app, or if you have **Node.js** installed:
    - open a terminal inside the `frontend` folder and run `npm install` (only the first time)
@@ -21,13 +20,16 @@ server or database.
 
 ## 2. Demo accounts (for testing)
 
+The app now talks to the **live backend** (`https://qflowee-backend.vercel.app/api/v1`), so
+use the accounts provisioned there:
+
 | Screen you want | Employee ID | Password |
 | -------------- | ----------- | -------- |
-| **Admin dashboard** | `ADM-001` | `admin123` |
-| **Staff dashboard** | `STF-001` | `staff123` |
+| **Admin dashboard** | `ADM-001` | `ftfr` |
+| **Staff dashboard** | `111` | `123456789` |
 
-There are also `STF-002` and `STF-003` staff accounts with the same password
-`staff123`. All of them are demo logins only.
+Staff accounts are created from the **Staff** tab of the admin dashboard. Sign in
+as admin, add a staff member, and use the credentials shown after creation.
 
 ---
 

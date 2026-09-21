@@ -62,17 +62,19 @@ export function isValidName(value?: string | null): boolean {
 }
 
 // ---------------- Employee ID ----------------
-// Optional. 2–20 chars of letters, numbers, dash or underscore.
-const EMPLOYEE_ID_RE = /^[A-Za-z0-9_-]+$/
+// Mirrors backend `sanitizeEmployeeId`: 3–20 chars of letters, numbers or
+// dashes (underscores not allowed). Lowercase is accepted and uppercased server-side.
+const EMPLOYEE_ID_RE = /^[A-Za-z0-9-]+$/
 
 export function isValidEmployeeId(value?: string | null): boolean {
   const v = trim(value)
-  if (!v) return true // optional field
-  return v.length >= 2 && v.length <= MAX_EMPLOYEE_ID_LEN && EMPLOYEE_ID_RE.test(v)
+  if (!v) return false
+  return v.length >= 3 && v.length <= MAX_EMPLOYEE_ID_LEN && EMPLOYEE_ID_RE.test(v)
 }
 
 // ---------------- Password ----------------
-// Strong policy: 8–128 chars, at least one letter and one number.
+// Mirrors backend `validatePasswordStrength`: 8–128 chars, must include an
+// uppercase letter, a lowercase letter and a digit.
 export function passwordIssues(value?: string | null): string[] {
   const v = value ?? ''
   const issues: string[] = []
@@ -82,7 +84,8 @@ export function passwordIssues(value?: string | null): string[] {
   }
   if (v.length < MIN_PASSWORD_LEN) issues.push(`Use at least ${MIN_PASSWORD_LEN} characters.`)
   if (v.length > MAX_PASSWORD_LEN) issues.push(`Keep it under ${MAX_PASSWORD_LEN} characters.`)
-  if (!/[A-Za-z]/.test(v)) issues.push('Include at least one letter.')
+  if (!/[A-Z]/.test(v)) issues.push('Include at least one uppercase letter.')
+  if (!/[a-z]/.test(v)) issues.push('Include at least one lowercase letter.')
   if (!/\d/.test(v)) issues.push('Include at least one number.')
   if (/\s/.test(v)) issues.push('Remove spaces.')
   return issues
@@ -93,12 +96,11 @@ export function isValidPassword(value?: string | null): boolean {
 }
 
 // ---------------- Counter ----------------
-// Name: 2–60 chars, letters/digits + lightweight punctuation.
-const COUNTER_NAME_RE = /^[A-Za-z0-9À-ÖØ-öø-ÿ&()/.,'-]+(?:\s[A-Za-z0-9À-ÖØ-öø-ÿ&()/.,'-]+)*$/
-
+// Mirrors backend `sanitizeCounterName`: 1–100 chars after trimming and
+// collapsing runs of whitespace to single spaces.
 export function isValidCounterName(value?: string | null): boolean {
-  const v = trim(value)
-  return v.length >= 2 && v.length <= 60 && COUNTER_NAME_RE.test(v)
+  const v = trim(value).replace(/\s+/g, ' ')
+  return v.length >= 1 && v.length <= 100
 }
 
 export function isValidCounterNumber(value?: string | number | null): boolean {
@@ -157,8 +159,8 @@ export function nameMessage(value?: string | null): string {
 export function employeeIdMessage(value?: string | null): string {
   const v = trim(value)
   if (!v) return 'Employee ID is required.'
-  if (v.length < 2) return 'Employee ID must be at least 2 characters.'
+  if (v.length < 3) return 'Employee ID must be at least 3 characters.'
   if (v.length > MAX_EMPLOYEE_ID_LEN) return `Employee ID must be under ${MAX_EMPLOYEE_ID_LEN} characters.`
-  if (!EMPLOYEE_ID_RE.test(v)) return 'Employee ID can only contain letters, numbers, dashes and underscores.'
+  if (!EMPLOYEE_ID_RE.test(v)) return 'Employee ID can only contain letters, numbers and dashes.'
   return ''
 }
