@@ -6,6 +6,7 @@ import {
   handleCallNext,
   handleUpdateTicketStatus,
   handleRecallTicket,
+  handleSkipTicket,
 } from '../controllers/staff.controller.js';
 
 import { requireCounterStaff } from '../middlewares/staff.middleware.js';
@@ -303,5 +304,45 @@ router.patch('/tickets/:id/status', handleUpdateTicketStatus);
  *         description: Ticket not found
  */
 router.post('/tickets/:id/recall', handleRecallTicket);
+
+/**
+ * @openapi
+ * /api/staff/tickets/{id}/skip:
+ *   post:
+ *     summary: Skip a ticket
+ *     description: Skips the current ticket back into the queue. After 3 skipped calls the ticket is automatically cancelled.
+ *     tags: [Counter Staff]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Unique ticket ID
+ *     responses:
+ *       200:
+ *         description: Ticket skipped
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Ticket skipped.
+ *                 ticket:
+ *                   type: object
+ *       400:
+ *         description: Invalid ticket ID or transition not allowed
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - requires counter staff role
+ *       404:
+ *         description: Ticket not found
+ */
+router.post('/tickets/:id/skip', handleSkipTicket);
 
 export default router;
