@@ -1,7 +1,8 @@
 import swaggerJSDoc from 'swagger-jsdoc';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-const rootDir = process.cwd().replace(/\\/g, '/');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const options: swaggerJSDoc.Options = {
   definition: {
@@ -29,12 +30,7 @@ const options: swaggerJSDoc.Options = {
       },
     },
   },
-  apis: [
-    `${rootDir}/src/routes/**/*.ts`,
-    `${rootDir}/dist/routes/**/*.js`,
-    `./src/routes/**/*.ts`,
-    `./dist/routes/**/*.js`,
-  ],
+  apis: [path.join(__dirname, '../routes/**/*.ts')],
 };
 
 export const swaggerSpec = swaggerJSDoc(options);
