@@ -45,7 +45,11 @@ const corsOptions: cors.CorsOptions = {
     }
   },
   credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  optionsSuccessStatus: 200, // Important for legacy browser & proxy preflights
 };
+
 
 // 2. Initialize Express App & HTTP Server
 const app = express();
@@ -55,6 +59,9 @@ const server = http.createServer(app);
 export const io = new Server(server, {
   cors: corsOptions,
 });
+
+// Enable pre-flight checks across all routes
+app.options('*', cors(corsOptions));
 
 // Attach io instance to Express app & request pipeline
 app.set('io', io);
