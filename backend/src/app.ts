@@ -23,40 +23,15 @@ declare global {
   }
 }
 
-// 1. Origins Setup
-const defaultOrigins = ['http://localhost:3000', 'http://localhost:5173'];
-
-const envOrigins = (process.env.CLIENT_ORIGIN || '')
-  .split(',')
-  .map((origin) => origin.trim().replace(/\/$/, ''))
-  .filter(Boolean);
-
-const allowedOrigins = Array.from(
-  new Set([...defaultOrigins, ...envOrigins])
-);
-
-const corsOptions: cors.CorsOptions = {
-  origin: (origin, callback) => {
-    // Non-browser requests (Postman, server-to-server) have no origin
-    if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ''))) {
-      callback(null, true);
-    } else {
-      // Do NOT pass an Error object here - it crashes Express / Vercel Serverless
-      callback(null, false);
-    }
-  },
-  credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  optionsSuccessStatus: 200,
-};
-
 const app = express();
 const server = http.createServer(app);
 
-// 2. Socket.io Setup
+// 1. Socket.io Setup with CORS
 export const io = new Server(server, {
-  cors: corsOptions,
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  },
 });
 
 app.set('io', io);
@@ -65,12 +40,15 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   next();
 });
 
-// 3. Global CORS & Security (MUST be top of middleware chain)
-app.use(cors(corsOptions));
+// 2. Security & Global CORS (MUST be at the top of the middleware chain)
+app.use(cors());
+app.options('*', cors());
 app.use(helmet({ contentSecurityPolicy: false }));
+
+// 3. Body Parsing
 app.use(express.json());
 
-// 4. Rate Limiting
+// 4. Rate Limiting (Bypasses preflight OPTIONS requests)
 app.use('/api', (req: Request, res: Response, next: NextFunction) => {
   if (req.method === 'OPTIONS') {
     return next();
@@ -111,7 +89,7 @@ app.get('/health', async (_req: Request, res: Response) => {
   }
 });
 
-// 8. Global Error Handler (Prevents unhandled crashes on Vercel)
+// 8. Global Error Handler
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   console.error('Unhandled Error:', err);
   res.status(err.status || 500).json({
