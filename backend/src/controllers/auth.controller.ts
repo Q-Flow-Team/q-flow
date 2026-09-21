@@ -1,8 +1,9 @@
-import type { Request, Response, NextFunction } from 'express';
+import type { Request, Response } from 'express';
 import type { AuthenticatedRequest } from '../middlewares/auth.middleware.js';
 import { loginUser, bindShift, unbindShift } from '../services/auth.service.js';
+import { getSafeErrorMessage } from '../utils/errorHandler.js';
 
-export async function handleLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function handleLogin(req: Request, res: Response): Promise<void> {
   try {
     const { employeeId, password } = req.body;
     if (!employeeId || !password) {
@@ -13,15 +14,12 @@ export async function handleLogin(req: Request, res: Response, next: NextFunctio
     const result = await loginUser(employeeId, password);
     res.status(200).json(result);
   } catch (error: any) {
-    if (error.message === 'Invalid employee ID or password.') {
-      res.status(401).json({ error: error.message });
-      return;
-    }
-    next(error); // Pass unexpected errors (DB, Prisma, network) to global error handler
+    console.error('Login failed:', error);
+    res.status(401).json({ error: getSafeErrorMessage(error, 'Authentication failed.') });
   }
 }
 
-export async function handleBindShift(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+export async function handleBindShift(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const userId = req.user?.userId;
     const { counterId } = req.body;
@@ -39,15 +37,12 @@ export async function handleBindShift(req: AuthenticatedRequest, res: Response, 
     const counter = await bindShift(userId, counterId);
     res.status(200).json({ message: 'Shift successfully bound.', counter });
   } catch (error: any) {
-    if (error.message?.includes('already bound') || error.message?.includes('not found')) {
-      res.status(400).json({ error: error.message });
-      return;
-    }
-    next(error);
+    console.error('Bind shift failed:', error);
+    res.status(400).json({ error: getSafeErrorMessage(error, 'Failed to bind shift.') });
   }
 }
 
-export async function handleUnbindShift(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+export async function handleUnbindShift(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const userId = req.user?.userId;
     if (!userId) {
@@ -58,10 +53,7 @@ export async function handleUnbindShift(req: AuthenticatedRequest, res: Response
     const result = await unbindShift(userId);
     res.status(200).json(result);
   } catch (error: any) {
-    if (error.message?.includes('No active shift')) {
-      res.status(400).json({ error: error.message });
-      return;
-    }
-    next(error);
+    console.error('Unbind shift failed:', error);
+    res.status(400).json({ error: getSafeErrorMessage(error, 'Failed to unbind shift.') });
   }
 }

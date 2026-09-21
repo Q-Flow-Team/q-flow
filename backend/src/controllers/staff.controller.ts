@@ -7,6 +7,7 @@ import {
   markTicketServed,
   getStaffShiftOverview,
 } from '../services/ticket.service.js';
+import { getSafeErrorMessage } from '../utils/errorHandler.js';
 
 // GET /api/staff/shift-overview
 export async function handleGetShiftOverview(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -20,7 +21,8 @@ export async function handleGetShiftOverview(req: AuthenticatedRequest, res: Res
     const overview = await getStaffShiftOverview(staffId);
     res.status(200).json(overview);
   } catch (error: any) {
-    res.status(400).json({ error: error.message || 'Failed to retrieve shift overview.' });
+    console.error('Get shift overview failed:', error);
+    res.status(400).json({ error: getSafeErrorMessage(error, 'Failed to retrieve shift overview.') });
   }
 }
 
@@ -36,7 +38,8 @@ export async function handleCallNext(req: AuthenticatedRequest, res: Response): 
     const result = await callNextTicket(staffId);
     res.status(200).json({ message: 'Next customer called.', data: result });
   } catch (error: any) {
-    res.status(400).json({ error: error.message || 'Failed to call next customer.' });
+    console.error('Call next failed:', error);
+    res.status(400).json({ error: getSafeErrorMessage(error, 'Failed to call next customer.') });
   }
 }
 
@@ -59,7 +62,8 @@ export async function handleStartService(req: AuthenticatedRequest, res: Respons
     const ticket = await markTicketInService(id, staffId);
     res.status(200).json({ message: 'Service started.', ticket });
   } catch (error: any) {
-    res.status(400).json({ error: error.message || 'Failed to start service.' });
+    console.error('Start service failed:', error);
+    res.status(400).json({ error: getSafeErrorMessage(error, 'Failed to start service.') });
   }
 }
 
@@ -76,7 +80,8 @@ export async function handleCompleteService(req: AuthenticatedRequest, res: Resp
     const ticket = await markTicketServed(id);
     res.status(200).json({ message: 'Service completed.', ticket });
   } catch (error: any) {
-    res.status(400).json({ error: error.message || 'Failed to complete service.' });
+    console.error('Complete service failed:', error);
+    res.status(400).json({ error: getSafeErrorMessage(error, 'Failed to complete service.') });
   }
 }
 
@@ -99,6 +104,7 @@ export async function handleSkipTicket(req: AuthenticatedRequest, res: Response)
     const ticket = await skipTicket(id, staffId);
     res.status(200).json({ message: 'Ticket skipped.', ticket });
   } catch (error: any) {
-    res.status(400).json({ error: error.message || 'Failed to skip ticket.' });
+    console.error('Skip ticket failed:', error);
+    res.status(400).json({ error: getSafeErrorMessage(error, 'Failed to skip ticket.') });
   }
 }
