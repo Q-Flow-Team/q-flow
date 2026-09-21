@@ -5,7 +5,29 @@ import { LayoutDashboard, Hash, Users, QrCode, Ticket } from 'lucide-vue-next'
 definePageMeta({ layout: false })
 
 type AdminPage = 'overview' | 'counters' | 'staff' | 'tickets' | 'qr'
-const activePage = ref<AdminPage>('overview')
+const allPages: AdminPage[] = ['overview', 'counters', 'staff', 'tickets', 'qr']
+
+const route = useRoute()
+const router = useRouter()
+
+const pageQuery = route.query.page
+const initialPage: AdminPage =
+  typeof pageQuery === 'string' && (allPages as string[]).includes(pageQuery)
+    ? (pageQuery as AdminPage)
+    : 'overview'
+
+const activePage = ref<AdminPage>(initialPage)
+
+const setPage = (page: AdminPage) => {
+  activePage.value = page
+  const query = { ...route.query }
+  if (page === 'overview') {
+    delete query.page
+  } else {
+    query.page = page
+  }
+  router.replace({ query })
+}
 
 const { user, logout } = useAuth()
 
@@ -37,7 +59,7 @@ const handleSignOut = async () => {
       :userName="userName"
       :userRole="userRole"
       title="Admin Dashboard"
-      @navigate="activePage = $event as AdminPage"
+      @navigate="setPage($event as AdminPage)"
       @signOut="handleSignOut"
     >
       <AdminOverview v-if="activePage === 'overview'" />

@@ -16,6 +16,27 @@ const navItems = [
   { key: 'history', label: 'History', icon: History },
 ]
 
+const route = useRoute()
+const router = useRouter()
+
+const staffPages = ['overview', 'queue', 'history']
+const pageQuery = route.query.page
+if (typeof pageQuery === 'string' && (staffPages as string[]).includes(pageQuery)) {
+  activePage.value = pageQuery
+}
+
+const setPage = (page: string) => {
+  activePage.value = page
+  const urlPage = page === 'ticket-detail' ? 'queue' : page
+  const query = { ...route.query }
+  if (urlPage === 'overview') {
+    delete query.page
+  } else {
+    query.page = urlPage
+  }
+  router.replace({ query })
+}
+
 const { message, visible, showToast } = useToast()
 provide('showToast', showToast)
 provide('selectedTicketId', selectedTicketId)
@@ -58,7 +79,7 @@ const handleSignOut = async () => {
       :userName="userName"
       :userRole="userRole"
       title="Staff Dashboard"
-      @navigate="activePage = $event"
+      @navigate="setPage"
       @signOut="handleSignOut"
     >
       <StaffOverview
