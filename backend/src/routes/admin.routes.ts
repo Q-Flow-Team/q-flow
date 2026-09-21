@@ -26,21 +26,28 @@ router.use(authenticateToken, requireAdmin);
  * @openapi
  * /api/v1/admin/qr-code:
  *   get:
- *     summary: Generate customer check-in QR code
+ *     summary: Generate the branch check-in QR code
+ *     description: Returns both a PNG data URL (for previews/downloads) and an SVG string (for print/signage) pointing at the customer self-service check-in URL.
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: QR code image/data generated successfully
+ *         description: QR code assets generated successfully
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 qrCodeDataUrl:
+ *                 targetUrl:
+ *                   type: string
+ *                   example: "https://qflow.example.com/check-in"
+ *                 pngDataUrl:
  *                   type: string
  *                   example: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
+ *                 svgString:
+ *                   type: string
+ *                   example: "<svg xmlns=\"http://www.w3.org/2000/svg\" ...>...</svg>"
  *       401:
  *         description: Unauthorized
  *       403:
@@ -75,13 +82,29 @@ router.get('/qr-code', handleGenerateQRCode);
  *     responses:
  *       201:
  *         description: Counter created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 counterNumber:
+ *                   type: integer
+ *                   example: 4
+ *                 counterName:
+ *                   type: string
+ *                   example: "Teller 4 - VIP"
+ *                 isActive:
+ *                   type: boolean
+ *                   example: true
  *       400:
  *         description: Counter number already exists
  *       401:
  *         description: Unauthorized
  *       403:
  *         description: Forbidden - Admin access required
- * 
+ *
  *   get:
  *     summary: Retrieve all registered counters
  *     tags: [Admin - Counter Management]
@@ -89,7 +112,7 @@ router.get('/qr-code', handleGenerateQRCode);
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: List of all counters
+ *         description: List of all counters, ordered by counter number
  *         content:
  *           application/json:
  *             schema:
@@ -105,9 +128,21 @@ router.get('/qr-code', handleGenerateQRCode);
  *                     type: string
  *                   isActive:
  *                     type: boolean
- *                   activeStaff:
+ *                   currentStaff:
  *                     type: object
  *                     nullable: true
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       employeeId:
+ *                         type: string
+ *                         example: "STF-010"
+ *                       fullName:
+ *                         type: string
+ *                         example: "Jane Doe"
+ *                       role:
+ *                         type: string
+ *                         enum: [ADMIN, COUNTER_STAFF]
  */
 router.post('/counters', handleCreateCounter);
 router.get('/counters', handleGetAllCounters);
@@ -117,6 +152,7 @@ router.get('/counters', handleGetAllCounters);
  * /api/v1/admin/counters/{id}/toggle:
  *   patch:
  *     summary: Enable or disable a service counter
+ *     description: Deactivating a counter automatically force-unbinds any staff member currently assigned to it.
  *     tags: [Admin - Counter Management]
  *     security:
  *       - bearerAuth: []
@@ -127,9 +163,41 @@ router.get('/counters', handleGetAllCounters);
  *         schema:
  *           type: string
  *         description: Unique counter ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - isActive
+ *             properties:
+ *               isActive:
+ *                 type: boolean
+ *                 example: false
  *     responses:
  *       200:
  *         description: Counter status toggled successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 counterNumber:
+ *                   type: integer
+ *                 counterName:
+ *                   type: string
+ *                 isActive:
+ *                   type: boolean
+ *                 currentStaffId:
+ *                   type: string
+ *                   nullable: true
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
  *       404:
  *         description: Counter not found
  */
@@ -140,6 +208,7 @@ router.patch('/counters/:id/toggle', handleToggleCounter);
  * /api/v1/admin/counters/{id}/force-unbind:
  *   post:
  *     summary: Force unbind staff assigned to a counter
+ *     description: Unconditionally clears the counter's currently bound staff member, regardless of whether one is assigned.
  *     tags: [Admin - Counter Management]
  *     security:
  *       - bearerAuth: []
@@ -152,9 +221,24 @@ router.patch('/counters/:id/toggle', handleToggleCounter);
  *         description: Unique counter ID
  *     responses:
  *       200:
- *         description: Active staff session terminated from counter
- *       400:
- *         description: Counter has no active staff bound
+ *         description: Counter's staff binding cleared
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 counterNumber:
+ *                   type: integer
+ *                 currentStaffId:
+ *                   type: string
+ *                   nullable: true
+ *                   example: null
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
  *       404:
  *         description: Counter not found
  */
@@ -178,10 +262,10 @@ router.post('/counters/:id/force-unbind', handleForceUnbind);
  *               - employeeId
  *               - fullName
  *               - password
- *               - role
  *             properties:
  *               employeeId:
  *                 type: string
+ *                 description: 3-20 characters; letters, numbers, and hyphens only.
  *                 example: "STF-010"
  *               fullName:
  *                 type: string
@@ -189,25 +273,92 @@ router.post('/counters/:id/force-unbind', handleForceUnbind);
  *               password:
  *                 type: string
  *                 format: password
- *                 example: "SecurePass123!"
+ *                 description: Min 8 characters, must include uppercase, lowercase, and a digit.
+ *                 example: "SecurePass123"
  *               role:
  *                 type: string
- *                 enum: [ADMIN, STAFF]
- *                 example: "STAFF"
+ *                 enum: [ADMIN, COUNTER_STAFF]
+ *                 description: Defaults to COUNTER_STAFF if omitted.
+ *                 example: "COUNTER_STAFF"
  *     responses:
  *       201:
  *         description: User created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 employeeId:
+ *                   type: string
+ *                   example: "STF-010"
+ *                 fullName:
+ *                   type: string
+ *                   example: "Jane Doe"
+ *                 role:
+ *                   type: string
+ *                   example: "COUNTER_STAFF"
+ *                 createdAt:
+ *                   type: string
+ *                   format: date-time
  *       400:
- *         description: Employee ID already exists
- * 
+ *         description: Employee ID already registered, or employeeId/fullName/password failed validation
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
+ *
  *   get:
  *     summary: List all system users
  *     tags: [Admin - User Provisioning]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: role
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [ADMIN, COUNTER_STAFF]
+ *         description: Optional filter by role
  *     responses:
  *       200:
- *         description: List of system users
+ *         description: List of system users, newest first
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   employeeId:
+ *                     type: string
+ *                   fullName:
+ *                     type: string
+ *                   role:
+ *                     type: string
+ *                     enum: [ADMIN, COUNTER_STAFF]
+ *                   createdAt:
+ *                     type: string
+ *                     format: date-time
+ *                   updatedAt:
+ *                     type: string
+ *                     format: date-time
+ *                   activeCounter:
+ *                     type: object
+ *                     nullable: true
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       counterNumber:
+ *                         type: integer
+ *                       counterName:
+ *                         type: string
+ *                       isActive:
+ *                         type: boolean
  */
 router.post('/users', handleCreateUser);
 router.get('/users', handleGetAllUsers);
@@ -239,10 +390,25 @@ router.get('/users', handleGetAllUsers);
  *               newPassword:
  *                 type: string
  *                 format: password
- *                 example: "NewStrongPassword123!"
+ *                 description: Min 8 characters, must include uppercase, lowercase, and a digit.
+ *                 example: "NewStrongPassword123"
  *     responses:
  *       200:
- *         description: User password reset successfully
+ *         description: Password reset successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Password successfully reset for employee ID: STF-010"
+ *       400:
+ *         description: New password failed strength validation
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
  *       404:
  *         description: User not found
  */
@@ -252,19 +418,94 @@ router.post('/users/:id/reset-password', handleResetPassword);
  * @openapi
  * /api/v1/admin/tickets:
  *   get:
- *     summary: Retrieve all queue tickets across all states
+ *     summary: Retrieve queue tickets with filtering, search, and pagination
  *     tags: [Admin - Queue Management]
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: status
+ *         required: false
  *         schema:
  *           type: string
- *         description: Optional filter by status (e.g. WAITING, CALLED, COMPLETED, CANCELLED)
+ *           enum: [WAITING, CALLED, IN_SERVICE, SERVED, SKIPPED, CANCELLED, AUTO_CANCELLED]
+ *       - in: query
+ *         name: search
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Case-insensitive match against ticket number, customer name, or phone number
+ *       - in: query
+ *         name: page
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *           maximum: 100
  *     responses:
  *       200:
- *         description: Array of queue tickets
+ *         description: Paginated list of tickets, newest first
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 tickets:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       ticketNumber:
+ *                         type: string
+ *                       customerName:
+ *                         type: string
+ *                       phoneNumber:
+ *                         type: string
+ *                       status:
+ *                         type: string
+ *                         enum: [WAITING, CALLED, IN_SERVICE, SERVED, SKIPPED, CANCELLED, AUTO_CANCELLED]
+ *                       joinedAt:
+ *                         type: string
+ *                         format: date-time
+ *                       counter:
+ *                         type: object
+ *                         nullable: true
+ *                         properties:
+ *                           counterNumber:
+ *                             type: integer
+ *                           counterName:
+ *                             type: string
+ *                       servicedByStaff:
+ *                         type: object
+ *                         nullable: true
+ *                         properties:
+ *                           employeeId:
+ *                             type: string
+ *                           fullName:
+ *                             type: string
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     totalCount:
+ *                       type: integer
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
  */
 router.get('/tickets', handleGetAllTickets);
 
@@ -272,7 +513,8 @@ router.get('/tickets', handleGetAllTickets);
  * @openapi
  * /api/v1/admin/tickets/priority:
  *   post:
- *     summary: Insert a high-priority ticket at the front of the queue
+ *     summary: Insert a high-priority (VIP) ticket at the front of the queue
+ *     description: Shifts all currently WAITING tickets back one position and inserts the new ticket at position 1.
  *     tags: [Admin - Queue Management]
  *     security:
  *       - bearerAuth: []
@@ -285,7 +527,6 @@ router.get('/tickets', handleGetAllTickets);
  *             required:
  *               - customerName
  *               - phoneNumber
- *               - priorityReason
  *             properties:
  *               customerName:
  *                 type: string
@@ -293,12 +534,36 @@ router.get('/tickets', handleGetAllTickets);
  *               phoneNumber:
  *                 type: string
  *                 example: "233240000000"
- *               priorityReason:
+ *               preferredChannel:
  *                 type: string
- *                 example: "Accessibility need"
+ *                 enum: [WHATSAPP, SMS, NONE]
+ *                 description: Defaults to WHATSAPP if omitted.
+ *                 example: "WHATSAPP"
  *     responses:
  *       201:
- *         description: Priority ticket generated and placed at head of queue
+ *         description: Priority ticket created and placed at head of queue
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 ticketNumber:
+ *                   type: string
+ *                   example: "VIP-001"
+ *                 status:
+ *                   type: string
+ *                   example: "WAITING"
+ *                 currentPosition:
+ *                   type: integer
+ *                   example: 1
+ *       400:
+ *         description: customerName or phoneNumber failed validation
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
  */
 router.post('/tickets/priority', handleCreatePriorityTicket);
 
@@ -306,7 +571,8 @@ router.post('/tickets/priority', handleCreatePriorityTicket);
  * @openapi
  * /api/v1/admin/tickets/{id}/override:
  *   patch:
- *     summary: Forcefully override the status of a ticket
+ *     summary: Manually override a ticket's status or details
+ *     description: All fields are optional and applied independently — e.g. you can update just customerName without touching status. Setting status to a terminal value (SERVED, CANCELLED, AUTO_CANCELLED, SKIPPED) stamps the corresponding timestamp automatically.
  *     tags: [Admin - Queue Management]
  *     security:
  *       - bearerAuth: []
@@ -323,16 +589,40 @@ router.post('/tickets/priority', handleCreatePriorityTicket);
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - status
  *             properties:
  *               status:
  *                 type: string
- *                 enum: [WAITING, CALLED, IN_SERVICE, COMPLETED, SKIPPED, CANCELLED]
+ *                 enum: [WAITING, CALLED, IN_SERVICE, SERVED, SKIPPED, CANCELLED, AUTO_CANCELLED]
  *                 example: "CANCELLED"
+ *               customerName:
+ *                 type: string
+ *               phoneNumber:
+ *                 type: string
+ *               preferredChannel:
+ *                 type: string
+ *                 enum: [WHATSAPP, SMS, NONE]
+ *               reason:
+ *                 type: string
+ *                 description: Included in the real-time broadcast event; not persisted on the ticket record.
+ *                 example: "Customer requested cancellation"
  *     responses:
  *       200:
- *         description: Ticket status overridden successfully
+ *         description: Ticket updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 ticketNumber:
+ *                   type: string
+ *                 status:
+ *                   type: string
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
  *       404:
  *         description: Ticket not found
  */
@@ -342,27 +632,57 @@ router.patch('/tickets/:id/override', handleOverrideTicketStatus);
  * @openapi
  * /api/v1/admin/analytics/overview:
  *   get:
- *     summary: Get system-wide queue metrics and throughput
+ *     summary: Get today's system-wide queue metrics
  *     tags: [Admin - Analytics]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Daily operational overview, wait times, and ticket totals
+ *         description: Today's operational overview, wait/service times, and status breakdown
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
+ *                 date:
+ *                   type: string
+ *                   format: date
+ *                   example: "2026-09-21"
  *                 totalTicketsToday:
  *                   type: integer
  *                   example: 142
- *                 averageWaitTimeMinutes:
+ *                 avgWaitTimeMinutes:
  *                   type: number
+ *                   nullable: true
+ *                   description: Average time from joining to being serviced, in minutes. Null if no tickets were served today.
  *                   example: 12.4
- *                 activeWaitingCount:
- *                   type: integer
- *                   example: 8
+ *                 avgServiceTimeMinutes:
+ *                   type: number
+ *                   nullable: true
+ *                   description: Average time spent in service, in minutes. Null if no tickets were served today.
+ *                   example: 5.1
+ *                 statusBreakdown:
+ *                   type: object
+ *                   description: Count of today's tickets per status
+ *                   properties:
+ *                     WAITING:
+ *                       type: integer
+ *                     CALLED:
+ *                       type: integer
+ *                     IN_SERVICE:
+ *                       type: integer
+ *                     SERVED:
+ *                       type: integer
+ *                     SKIPPED:
+ *                       type: integer
+ *                     CANCELLED:
+ *                       type: integer
+ *                     AUTO_CANCELLED:
+ *                       type: integer
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
  */
 router.get('/analytics/overview', handleGetSystemAnalytics);
 
@@ -370,13 +690,40 @@ router.get('/analytics/overview', handleGetSystemAnalytics);
  * @openapi
  * /api/v1/admin/analytics/staff-efficiency:
  *   get:
- *     summary: Get performance metrics for counter staff
+ *     summary: Get today's performance metrics per counter staff member
  *     tags: [Admin - Analytics]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Staff efficiency metrics, completed ticket counts, and average service times
+ *         description: Per-staff ticket counts and average handling time for today
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   staffId:
+ *                     type: string
+ *                   employeeId:
+ *                     type: string
+ *                   fullName:
+ *                     type: string
+ *                   activeCounter:
+ *                     type: string
+ *                     example: "Register 3"
+ *                     description: "\"Unbound\" if the staff member isn't currently assigned to a counter."
+ *                   totalTicketsServedToday:
+ *                     type: integer
+ *                   avgHandlingTimeMinutes:
+ *                     type: number
+ *                     nullable: true
+ *                     description: Null if the staff member hasn't completed any tickets today.
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
  */
 router.get('/analytics/staff-efficiency', handleGetStaffEfficiency);
 

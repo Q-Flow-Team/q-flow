@@ -4,9 +4,9 @@
   "type": "module",
   "main": "dist/app.js",
   "scripts": {
-    "dev": "tsx watch src/app.ts",
-    "vercel-build": "npx prisma generate --schema=../database/prisma/schema.prisma && tsc",
-    "generate:swagger": "tsx scripts/generate-swagger.ts",
+    "dev": "npm run generate:swagger && tsx watch src/app.ts",
+    "generate:swagger": "tsx src/scripts/generate-swagger.ts",
+    "vercel-build": "npm run generate:swagger && npx prisma generate --schema=../database/prisma/schema.prisma && tsc",
     "build": "npm run generate:swagger && tsc",
     "start": "node dist/app.js"
   },
