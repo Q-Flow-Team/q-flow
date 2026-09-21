@@ -12,10 +12,8 @@ import adminRoutes from './routes/admin.routes.js';
 import staffRoutes from './routes/staff.routes.js';
 import { apiLimiter } from './middlewares/rateLimit.middleware.js';
 import swaggerUi from 'swagger-ui-express';
-//
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { swaggerSpec } from './config/swagger.js';
+
 // Build allowed origins array and strip any accidental trailing slashes
 const defaultLocalOrigins = [
   'http://localhost:3000',
@@ -76,12 +74,6 @@ app.use('/api', (req, res, next) => {
 });
 
 // Swagger documentation endpoints
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const swaggerSpec = JSON.parse(
-  fs.readFileSync(path.join(__dirname, './config/swagger-spec.json'), 'utf-8')
-);
-
-// Swagger documentation endpoints
 app.get('/docs/json', (_req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/json');
   res.json(swaggerSpec);
@@ -97,8 +89,6 @@ const swaggerUiOptions = {
 };
 
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
-
-
 
 // Routes
 app.use('/api/v1/auth', authRoutes);
