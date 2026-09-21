@@ -37,11 +37,28 @@ const allowedOrigins = Array.from(
 
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    // Non-browser requests (Postman, server-to-server) have no origin
-    if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ''))) {
+    // 1. Allow non-browser clients (Postman, curl)
+    if (!origin) return callback(null, true);
+
+    const cleanOrigin = origin.trim().replace(/\/$/, '');
+
+    // 2. Always allow local development origins explicitly
+    if (
+      cleanOrigin === 'http://localhost:3000' || 
+      cleanOrigin === 'http://localhost:5173' ||
+      cleanOrigin.startsWith('http://localhost:')
+    ) {
+      return callback(null, true);
+    }
+
+    // 3. Match against allowedOrigins array
+    const isAllowed = allowedOrigins.some(
+      (allowed) => allowed.replace(/\/$/, '') === cleanOrigin
+    );
+
+    if (isAllowed) {
       callback(null, true);
     } else {
-      // Do NOT pass an Error object here - it crashes Express / Vercel Serverless
       callback(null, false);
     }
   },
@@ -64,6 +81,8 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   req.io = io;
   next();
 });
+
+app.options('*', cors(corsOptions));
 
 // 3. Global CORS & Security (MUST be top of middleware chain)
 app.use(cors(corsOptions));
