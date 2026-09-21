@@ -23,57 +23,13 @@ declare global {
   }
 }
 
-// 1. Origins Setup
-const defaultOrigins = ['http://localhost:3000', 'http://localhost:5173'];
-
-const envOrigins = (process.env.CLIENT_ORIGIN || '')
-  .split(',')
-  .map((origin) => origin.trim().replace(/\/$/, ''))
-  .filter(Boolean);
-
-const allowedOrigins = Array.from(
-  new Set([...defaultOrigins, ...envOrigins])
-);
-
-const corsOptions: cors.CorsOptions = {
-  origin: (origin, callback) => {
-    // 1. Allow non-browser clients (Postman, curl)
-    if (!origin) return callback(null, true);
-
-    const cleanOrigin = origin.trim().replace(/\/$/, '');
-
-    // 2. Always allow local development origins explicitly
-    if (
-      cleanOrigin === 'http://localhost:3000' || 
-      cleanOrigin === 'http://localhost:5173' ||
-      cleanOrigin.startsWith('http://localhost:')
-    ) {
-      return callback(null, true);
-    }
-
-    // 3. Match against allowedOrigins array
-    const isAllowed = allowedOrigins.some(
-      (allowed) => allowed.replace(/\/$/, '') === cleanOrigin
-    );
-
-    if (isAllowed) {
-      callback(null, true);
-    } else {
-      callback(null, false);
-    }
-  },
-  credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  optionsSuccessStatus: 200,
-};
 
 const app = express();
+app.use(cors());
 const server = http.createServer(app);
 
 // 2. Socket.io Setup
 export const io = new Server(server, {
-  cors: corsOptions,
 });
 
 app.set('io', io);
@@ -82,10 +38,10 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   next();
 });
 
-app.options('*', cors(corsOptions));
+app.options('*', cors());
 
 // 3. Global CORS & Security (MUST be top of middleware chain)
-app.use(cors(corsOptions));
+
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json());
 
