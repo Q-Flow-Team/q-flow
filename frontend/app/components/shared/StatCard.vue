@@ -19,10 +19,10 @@ const props = withDefaults(
 )
 
 const tones: Record<Tone, { chip: string; bar: string; text: string }> = {
-  primary: { chip: 'bg-primary-light text-primary', bar: 'bg-primary', text: 'text-primary' },
-  success: { chip: 'bg-success-light text-success', bar: 'bg-success', text: 'text-success' },
-  warning: { chip: 'bg-warning-light text-warning', bar: 'bg-warning', text: 'text-warning' },
-  danger: { chip: 'bg-danger-light text-danger', bar: 'bg-danger', text: 'text-danger' },
+  primary: { chip: 'bg-muted text-muted-foreground', bar: 'bg-muted-foreground', text: 'text-muted-foreground' },
+  success: { chip: 'bg-muted text-muted-foreground', bar: 'bg-muted-foreground', text: 'text-muted-foreground' },
+  warning: { chip: 'bg-muted text-muted-foreground', bar: 'bg-muted-foreground', text: 'text-muted-foreground' },
+  danger: { chip: 'bg-muted text-muted-foreground', bar: 'bg-muted-foreground', text: 'text-muted-foreground' },
   neutral: { chip: 'bg-muted text-muted-foreground', bar: 'bg-muted-foreground', text: 'text-muted-foreground' },
 }
 

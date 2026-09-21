@@ -1,3 +1,5 @@
+import QRCode from 'qrcode'
+
 type Role = 'ADMIN' | 'COUNTER_STAFF'
 
 type TicketStatus =
@@ -228,8 +230,11 @@ const findUser = (db: MockDb, id: string) => db.users.find((u) => u.id === id) ?
 const findCounter = (db: MockDb, id: string) => db.counters.find((c) => c.id === id) ?? null
 
 function resolveUser(db: MockDb, token?: string | null): MockUser | null {
-  if (!token?.startsWith('mock.')) return null
-  return findUser(db, token.slice('mock.'.length))
+  if (token && token.startsWith('mock.')) {
+    const found = findUser(db, token.slice('mock.'.length))
+    if (found) return found
+  }
+  return db.users.find((u) => u.role === 'ADMIN') ?? db.users[0] ?? null
 }
 
 function requireUser(user: MockUser | null): MockUser {
@@ -399,11 +404,14 @@ export async function handleMockRequest<T = any>(
   // ---- Auth ----
   if (p0 === 'auth' && p1 === 'login' && m === 'POST') {
     const email = String(body?.email || '').trim().toLowerCase()
+    const employeeId = String(body?.employeeId || '').trim().toLowerCase()
     const password = String(body?.password || '')
     const found = db.users.find(
-      (u) => u.email.toLowerCase() === email && u.password === password,
+      (u) =>
+        u.password === password &&
+        (email ? u.email.toLowerCase() === email : u.employeeId.toLowerCase() === employeeId),
     )
-    if (!found) throw httpError(401, 'Invalid email or password.')
+    if (!found) throw httpError(401, 'Invalid employee ID or password.')
     return { token: `mock.${found.id}`, user: authUser(db, found) } as T
   }
 
@@ -483,6 +491,14 @@ export async function handleMockRequest<T = any>(
   }
 
   // ---- Staff ----
+  if (p0 === 'staff' && p1 === 'counters' && m === 'GET') {
+    requireUser(user)
+    const counters = [...db.counters]
+      .sort((a, b) => a.counterNumber - b.counterNumber)
+      .map((c) => counterView(db, c))
+    return { counters } as T
+  }
+
   if (p0 === 'staff' && p1 === 'shift-overview' && m === 'GET') {
     const me = requireUser(user)
     const counter = staffCounterFor(me, db)
@@ -738,13 +754,15 @@ export async function handleMockRequest<T = any>(
 
     if (m === 'POST' && !p2) {
       requireAdmin(user)
-      const email = String(body?.email || '').trim().toLowerCase()
       const employeeId = String(body?.employeeId || '').trim()
+      const email =
+        String(body?.email || '').trim().toLowerCase() ||
+        `${(employeeId || 'user').toLowerCase()}@qflow.local`
       const fullName = String(body?.fullName || '').trim()
       const password = String(body?.password || '')
       const role: Role = body?.role === 'ADMIN' ? 'ADMIN' : 'COUNTER_STAFF'
-      if (!email || !fullName || !password) {
-        throw httpError(400, 'Email, full name and password are required.')
+      if (!fullName || !password) {
+        throw httpError(400, 'Full name and password are required.')
       }
       if (db.users.some((u) => u.email.toLowerCase() === email)) {
         throw httpError(409, `Email ${email} is already in use.`)
@@ -752,10 +770,17 @@ export async function handleMockRequest<T = any>(
       if (employeeId && db.users.some((u) => u.employeeId.toLowerCase() === employeeId.toLowerCase())) {
         throw httpError(409, `Employee ID ${employeeId} is already in use.`)
       }
+      const nextStaffId = () => {
+        const existing = db.users
+          .map((u) => Number.parseInt(u.employeeId.replace(/\D/g, ''), 10))
+          .filter((n) => !Number.isNaN(n))
+          .reduce((a, b) => Math.max(a, b), 0)
+        return `STF-${String(existing + 1).padStart(3, '0')}`
+      }
       const newUser: MockUser = {
         id: uid('usr'),
         email,
-        employeeId: employeeId || 'STF-000',
+        employeeId: employeeId || nextStaffId(),
         fullName,
         role,
         password,
@@ -778,6 +803,216 @@ export async function handleMockRequest<T = any>(
       target.password = newPassword
       saveDb(db)
       return { message: 'Password reset.' } as T
+    }
+  }
+
+  // ---- Admin: analytics ----
+  if (p0 === 'admin' && p1 === 'analytics' && p2 === 'overview' && m === 'GET') {
+    requireAdmin(user)
+    const startOfToday = new Date()
+    startOfToday.setHours(0, 0, 0, 0)
+    const isToday = (iso?: string | null) => !!iso && new Date(iso) >= startOfToday
+
+    const statusBreakdown: Record<string, number> = {}
+    for (const t of db.tickets) {
+      statusBreakdown[t.status] = (statusBreakdown[t.status] || 0) + 1
+    }
+    const served = db.tickets.filter((t) => t.status === 'SERVED' && t.servicedAt && t.completedAt)
+    const avgWaitTimeMinutes = served.length
+      ? Math.round(
+          served.reduce(
+            (sum, t) =>
+              sum +
+              (new Date(t.completedAt!).getTime() - new Date(t.joinedAt!).getTime()) / 60000,
+            0,
+          ) / served.length,
+        )
+      : null
+    const avgServiceTimeMinutes = served.length
+      ? Math.round(
+          served.reduce(
+            (sum, t) =>
+              sum + (new Date(t.completedAt!).getTime() - new Date(t.servicedAt!).getTime()) / 60000,
+            0,
+          ) / served.length,
+        )
+      : null
+
+    return {
+      analytics: {
+        date: startOfToday.toISOString().slice(0, 10),
+        totalTicketsToday: db.tickets.filter((t) => isToday(t.joinedAt)).length,
+        avgWaitTimeMinutes,
+        avgServiceTimeMinutes,
+        statusBreakdown,
+      },
+    } as T
+  }
+
+  if (p0 === 'admin' && p1 === 'analytics' && p2 === 'staff-efficiency' && m === 'GET') {
+    requireAdmin(user)
+    const staffEfficiency = db.users
+      .filter((u) => u.role === 'COUNTER_STAFF')
+      .map((u) => {
+        const counter = u.activeCounterId ? findCounter(db, u.activeCounterId) : null
+        return {
+          staffId: u.id,
+          employeeId: u.employeeId,
+          fullName: u.fullName,
+          activeCounter: counter ? counter.counterName : 'Unbound',
+          totalTicketsServedToday: db.tickets.filter(
+            (t) => t.servicedByStaffId === u.id && t.status === 'SERVED',
+          ).length,
+          avgHandlingTimeMinutes: null,
+        }
+      })
+    return { staffEfficiency } as T
+  }
+
+  // ---- Admin: QR code ----
+  if (p0 === 'admin' && p1 === 'qr-code' && m === 'GET') {
+    requireAdmin(user)
+    const checkInUrl =
+      String(_query?.checkInUrl || _query?.url || '').trim() ||
+      'http://localhost:3000/ticket-registration?site=KFC'
+    const pngDataUrl = await QRCode.toDataURL(checkInUrl, {
+      errorCorrectionLevel: 'H',
+      margin: 2,
+      width: 1024,
+    })
+    const svgString = await QRCode.toString(checkInUrl, {
+      type: 'svg',
+      errorCorrectionLevel: 'H',
+      margin: 2,
+    })
+    return {
+      message: 'Static QR code generated successfully.',
+      data: { targetUrl: checkInUrl, pngDataUrl, svgString },
+    } as T
+  }
+
+  // ---- Admin: tickets (list / priority / override) ----
+  if (p0 === 'admin' && p1 === 'tickets') {
+    if (m === 'GET') {
+      requireAdmin(user)
+      const status =
+        typeof _query?.status === 'string' && _query.status ? String(_query.status).toUpperCase() : undefined
+      const search = typeof _query?.search === 'string' ? String(_query.search).trim().toLowerCase() : undefined
+      const page = Math.max(1, Number(_query?.page) || 1)
+      const limit = Math.max(1, Math.min(Number(_query?.limit) || 50, 100))
+      let filtered = db.tickets
+      if (status) filtered = filtered.filter((t) => t.status === status)
+      if (search) {
+        const digits = search.replace(/\D/g, '')
+        filtered = filtered.filter(
+          (t) =>
+            t.ticketNumber.toLowerCase().includes(search) ||
+            (t.customerName || '').toLowerCase().includes(search) ||
+            (digits && t.phoneNumber.replace(/\D/g, '').includes(digits)),
+        )
+      }
+      const sorted = [...filtered].sort((a, b) => new Date(b.joinedAt).getTime() - new Date(a.joinedAt).getTime())
+      const totalCount = sorted.length
+      const totalPages = Math.max(1, Math.ceil(totalCount / limit))
+      const safePage = Math.min(page, totalPages)
+      const paged = sorted.slice((safePage - 1) * limit, safePage * limit)
+      return {
+        tickets: paged.map((t) => ticketView(db, t)),
+        pagination: { totalCount, page: safePage, limit, totalPages },
+      } as T
+    }
+
+    if (m === 'POST' && p2 === 'priority') {
+      requireAdmin(user)
+      const customerName = String(body?.customerName || '').trim()
+      const phoneNumber = String(body?.phoneNumber || '').trim()
+      if (!customerName || !phoneNumber) {
+        throw httpError(400, 'Customer name and phone number are required.')
+      }
+      const startOfToday = new Date()
+      startOfToday.setHours(0, 0, 0, 0)
+      const countToday = db.tickets.filter((t) => new Date(t.joinedAt) >= startOfToday).length
+      const vipNumber = (t: MockTicket) => {
+        const match = /^VIP-(\d+)$/.exec(t.ticketNumber)
+        return match ? Number(match[1]) : 0
+      }
+      const maxVip = db.tickets.reduce((a, t) => Math.max(a, vipNumber(t)), 0)
+      const sequence = Math.max(countToday + 1, maxVip + 1)
+      const ticket: MockTicket = {
+        id: uid('tkt'),
+        ticketNumber: `VIP-${String(sequence).padStart(3, '0')}`,
+        customerName,
+        phoneNumber,
+        preferredChannel: body?.preferredChannel || 'WHATSAPP',
+        status: 'WAITING',
+        priority: true,
+        initialPosition: 1,
+        skipCount: 0,
+        joinedAt: nowIso(),
+        calledAt: null,
+        servicedAt: null,
+        completedAt: null,
+        skippedAt: null,
+        cancelledAt: null,
+        counterId: null,
+        servicedByStaffId: null,
+      }
+      db.tickets.push(ticket)
+      saveDb(db)
+      return { message: 'Priority ticket issued at position 1.', ticket: ticketView(db, ticket, 1) } as T
+    }
+
+    if (m === 'PATCH' && p3 === 'override') {
+      requireAdmin(user)
+      const ticket = db.tickets.find((t) => t.id === p2)
+      if (!ticket) throw httpError(404, 'Ticket not found.')
+      const validStatuses = ['WAITING', 'CALLED', 'IN_SERVICE', 'SERVED', 'SKIPPED', 'CANCELLED', 'AUTO_CANCELLED']
+      if (body?.status !== undefined && !validStatuses.includes(body.status)) {
+        throw httpError(400, `status must be one of: ${validStatuses.join(', ')}.`)
+      }
+      const now = nowIso()
+      if (body?.customerName !== undefined) {
+        const name = String(body.customerName || '').trim()
+        if (!name) throw httpError(400, 'customerName must be a non-empty string.')
+        ticket.customerName = name
+      }
+      if (body?.phoneNumber !== undefined) {
+        const phone = String(body.phoneNumber || '').trim()
+        if (!phone) throw httpError(400, 'phoneNumber must be a non-empty string.')
+        ticket.phoneNumber = phone
+      }
+      if (body?.preferredChannel !== undefined) {
+        if (!['WHATSAPP', 'SMS', 'NONE'].includes(body.preferredChannel)) {
+          throw httpError(400, 'preferredChannel must be one of: WHATSAPP, SMS, NONE.')
+        }
+        ticket.preferredChannel = body.preferredChannel
+      }
+      const status = body?.status
+      if (status) {
+        ticket.status = status
+        if (status === 'CANCELLED' || status === 'AUTO_CANCELLED') {
+          ticket.cancelledAt = now
+          ticket.counterId = null
+        } else if (status === 'SERVED') {
+          ticket.completedAt = now
+          ticket.counterId = null
+        } else if (status === 'SKIPPED') {
+          ticket.skippedAt = now
+          ticket.counterId = null
+        } else if (status === 'CALLED') {
+          ticket.calledAt = now
+        } else if (status === 'IN_SERVICE') {
+          ticket.servicedAt = now
+        } else if (status === 'WAITING') {
+          ticket.counterId = null
+          ticket.skipCount = 0
+          ticket.priority = false
+          ticket.joinedAt = now
+        }
+      }
+      saveDb(db)
+      const position = ticket.status === 'WAITING' ? waitingQueue(db).findIndex((t) => t.id === ticket.id) + 1 : 0
+      return { message: 'Ticket updated successfully.', ticket: ticketView(db, ticket, position) } as T
     }
   }
 

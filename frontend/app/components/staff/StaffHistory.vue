@@ -100,7 +100,7 @@ onMounted(() => fetchHistory())
             :aria-current="page === p ? 'page' : undefined"
             :class="[
               'grid h-8 w-8 place-items-center text-xs font-bold transition-colors',
-              page === p ? 'bg-gray-900 text-white' : 'text-muted-foreground hover:bg-muted',
+              page === p ? 'text-foreground' : 'text-muted-foreground hover:bg-muted',
             ]"
           >
             {{ p }}

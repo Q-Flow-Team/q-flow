@@ -17,7 +17,6 @@ export interface AuthCounter {
 
 export interface AuthUser {
   id: string
-  email: string
   employeeId: string
   fullName: string
   role: 'ADMIN' | 'COUNTER_STAFF'
@@ -43,8 +42,8 @@ export function useAuth() {
     user.value = getStoredUser<AuthUser>()
   }
 
-  const login = async (email: string, password: string): Promise<LoginResponse> => {
-    const res = await apiPost<LoginResponse>('/auth/login', { email, password })
+  const login = async (employeeId: string, password: string): Promise<LoginResponse> => {
+    const res = await apiPost<LoginResponse>('/auth/login', { employeeId, password })
     token.value = res.token
     user.value = res.user
     setToken(res.token)

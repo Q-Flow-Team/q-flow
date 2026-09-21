@@ -8,12 +8,12 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   runtimeConfig: {
     public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || '',
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://q-flow-backend.vercel.app/api/v1',
       useMock: true,
     },
   },
   routeRules: {
-    '/customer/join': { redirect: '/', redirectCode: 302 },
+    '/customer/join': { redirect: '/ticket-registration', redirectCode: 302 },
   },
   app: {
     head: {

@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { Loader2, UserCheck, Search } from 'lucide-vue-next'
+import { Loader2, UserCheck, Search, Play, Check, SkipForward } from 'lucide-vue-next'
 import { formatTime, channelLabel } from '~/utils/format'
 
 const emit = defineEmits<{ selectTicket: [id: string] }>()
 
-const { overview, loading, callNext, serveTicket, trackTicket, error } = useStaffSession()
+const { overview, loading, callNext, startService, completeService, skipTicket, trackTicket, error } = useStaffSession()
 const showToast = inject<(msg: string) => void>('showToast', () => {})
 const search = ref('')
 const filter = ref('')
 const calling = ref(false)
-const servingId = ref<string | null>(null)
+const acting = ref<{ id: string; action: 'start' | 'complete' | 'skip' } | null>(null)
 
 const activeTicket = computed(() => overview.value?.activeTicket ?? null)
 const waitingCount = computed(() => overview.value?.waitingCount ?? 0)
@@ -37,15 +37,21 @@ const handleCallNext = async () => {
   }
 }
 
-const handleServe = async (t: any) => {
-  servingId.value = t.id
+const handleAction = async (t: any, action: 'start' | 'complete' | 'skip') => {
+  acting.value = { id: t.id, action }
   try {
-    const ticket = await serveTicket(t.id)
-    if (ticket) showToast(`${ticket.ticketNumber} served — ${ticket.customerName}`)
+    const ticket =
+      action === 'start'
+        ? await startService(t.id)
+        : action === 'complete'
+          ? await completeService(t.id)
+          : await skipTicket(t.id)
+    const verb = action === 'start' ? 'started' : action === 'complete' ? 'completed' : 'skipped'
+    if (ticket) showToast(`${ticket.ticketNumber} ${verb} — ${ticket.customerName}`)
   } catch (err: any) {
-    showToast(err?.message || 'Failed to serve this customer')
+    showToast(err?.message || `Failed to ${action} this customer`)
   } finally {
-    servingId.value = null
+    acting.value = null
   }
 }
 
@@ -80,20 +86,53 @@ const handleSelect = (t: any) => {
 
     <div
       v-if="activeTicket"
-      class="flex items-center justify-between gap-3 rounded-2xl border border-primary-border bg-primary-lighter px-4 py-3.5"
+      class="rounded-2xl border border-primary-border bg-primary-lighter px-4 py-3.5"
     >
-      <div class="flex min-w-0 items-center gap-3">
-        <span class="grid h-9 w-9 flex-shrink-0 place-items-center rounded-xl bg-primary text-white shadow-glow">
-          <UserCheck class="h-4 w-4" />
-        </span>
-        <div class="min-w-0">
-          <p class="text-[11px] font-bold uppercase tracking-wider text-primary">At your counter</p>
-          <p class="truncate text-sm font-extrabold text-foreground sm:text-base">
-            {{ activeTicket.ticketNumber }} &middot; {{ activeTicket.customerName }}
-          </p>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex min-w-0 items-center gap-3">
+          <span class="grid h-9 w-9 flex-shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground">
+            <UserCheck class="h-4 w-4" />
+          </span>
+          <div class="min-w-0">
+            <p class="text-[11px] font-bold uppercase tracking-wider text-primary">At your counter</p>
+            <p class="truncate text-sm font-extrabold text-foreground sm:text-base">
+              {{ activeTicket.ticketNumber }} &middot; {{ activeTicket.customerName }}
+            </p>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <StatusPill :status="activeTicket.status" />
+          <button
+            v-if="activeTicket.status === 'CALLED'"
+            :disabled="acting !== null"
+            class="btn btn-sm btn-primary"
+            @click="handleAction(activeTicket, 'start')"
+          >
+            <Loader2 v-if="acting?.id === activeTicket.id && acting?.action === 'start'" class="h-3.5 w-3.5 animate-spin" />
+            <Play v-else class="h-3.5 w-3.5" />
+            Start Service
+          </button>
+          <button
+            v-if="activeTicket.status === 'IN_SERVICE'"
+            :disabled="acting !== null"
+            class="btn btn-sm btn-primary"
+            @click="handleAction(activeTicket, 'complete')"
+          >
+            <Loader2 v-if="acting?.id === activeTicket.id && acting?.action === 'complete'" class="h-3.5 w-3.5 animate-spin" />
+            <Check v-else class="h-3.5 w-3.5" />
+            Complete
+          </button>
+          <button
+            :disabled="acting !== null"
+            class="btn btn-sm btn-outline"
+            @click="handleAction(activeTicket, 'skip')"
+          >
+            <Loader2 v-if="acting?.id === activeTicket.id && acting?.action === 'skip'" class="h-3.5 w-3.5 animate-spin" />
+            <SkipForward v-else class="h-3.5 w-3.5" />
+            Skip
+          </button>
         </div>
       </div>
-      <StatusPill :status="activeTicket.status" />
     </div>
 
     <div class="flex flex-col gap-3 sm:flex-row">
@@ -151,31 +190,14 @@ const handleSelect = (t: any) => {
                 <p class="text-xs text-muted-foreground">{{ t.phoneNumber }}</p>
               </td>
               <td class="td text-muted-foreground hidden sm:table-cell">{{ channelLabel(t.preferredChannel) }}</td>
-              <td class="td text-muted-foreground tabular-nums">
-                <span
-                  :class="[
-                    'inline-flex h-6 min-w-6 items-center justify-center px-1.5 text-xs font-bold',
-                    t.currentPosition === 1 ? 'bg-gray-900 text-white' : 'bg-muted text-muted-foreground',
-                  ]"
-                >
+              <td class="td text-foreground tabular-nums">
+                <span class="text-xs font-bold text-foreground">
                   {{ t.currentPosition > 0 ? t.currentPosition : '0' }}
                 </span>
               </td>
               <td class="td text-muted-foreground hidden md:table-cell tabular-nums">{{ formatTime(t.joinedAt) }}</td>
               <td class="td text-right">
-                <div class="inline-flex items-center gap-2">
-                  <button
-                    v-if="t.currentPosition === 1 && t.status === 'WAITING'"
-                    :disabled="calling || servingId !== null"
-                    class="btn btn-sm !px-2.5 !py-1"
-                    @click.stop="handleServe(t)"
-                  >
-                    <Loader2 v-if="servingId === t.id" class="h-3 w-3 animate-spin" />
-                    <UserCheck v-else class="h-3.5 w-3.5" />
-                    {{ servingId === t.id ? 'Serving…' : 'Serve' }}
-                  </button>
-                  <span class="text-xs font-bold text-gray-900">Details</span>
-                </div>
+                <span class="text-xs font-bold text-gray-900">Details</span>
               </td>
             </tr>
           </tbody>

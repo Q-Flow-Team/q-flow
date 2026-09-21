@@ -1,17 +1,22 @@
 <script setup lang="ts">
-import { Loader2 } from 'lucide-vue-next'
+import { Loader2, Eye, EyeOff, IdCard, Lock, UserRound } from 'lucide-vue-next'
 import { apiPost } from '~/utils/api'
-import { trim, isValidEmail, isValidName, passwordIssues, emailMessage, nameMessage } from '~/utils/validate'
+import { trim, isValidEmployeeId, isValidName, passwordIssues, employeeIdMessage, nameMessage } from '~/utils/validate'
 
-definePageMeta({ layout: false, middleware: 'auth' })
+definePageMeta({ layout: false })
 
-const email = ref('')
+const { init } = useTheme()
+onMounted(init)
+
+const employeeId = ref('')
 const fullName = ref('')
 const pw = ref('')
 const confirmPw = ref('')
+const showPw = ref(false)
+const showConfirmPw = ref(false)
 const err = ref('')
-const fieldErrors = ref<{ email: string; fullName: string; pw: string; confirmPw: string }>({
-  email: '',
+const fieldErrors = ref<{ employeeId: string; fullName: string; pw: string; confirmPw: string }>({
+  employeeId: '',
   fullName: '',
   pw: '',
   confirmPw: '',
@@ -20,10 +25,10 @@ const touched = ref<Record<string, boolean>>({})
 const loading = ref(false)
 
 const validate = (field: string) => {
-  const errors: typeof fieldErrors.value = { email: '', fullName: '', pw: '', confirmPw: '' }
-  const ev = trim(email.value)
-  if (!ev) errors.email = 'Email is required.'
-  else if (!isValidEmail(ev)) errors.email = emailMessage(ev)
+  const errors: typeof fieldErrors.value = { employeeId: '', fullName: '', pw: '', confirmPw: '' }
+  const ev = trim(employeeId.value)
+  if (!ev) errors.employeeId = 'Employee ID is required.'
+  else if (!isValidEmployeeId(ev)) errors.employeeId = employeeIdMessage(ev)
   if (!trim(fullName.value)) errors.fullName = 'Full name is required.'
   else if (!isValidName(fullName.value)) errors.fullName = nameMessage(fullName.value)
   const pwIssues = passwordIssues(pw.value)
@@ -40,14 +45,14 @@ const validateField = (field: string) => {
 }
 
 const handleSubmit = async () => {
-  const errors = validate('email')
-  touched.value = { email: true, fullName: true, pw: true, confirmPw: true }
+  const errors = validate('employeeId')
+  touched.value = { employeeId: true, fullName: true, pw: true, confirmPw: true }
   if (Object.values(errors).some(Boolean)) return
   err.value = ''
   loading.value = true
   try {
     await apiPost('/admin/users', {
-      email: trim(email.value).toLowerCase(),
+      employeeId: trim(employeeId.value),
       fullName: trim(fullName.value),
       password: pw.value,
       role: 'ADMIN',
@@ -62,64 +67,96 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-bg-page flex flex-col items-center justify-center p-4">
+  <div class="min-h-screen bg-bg-customer flex flex-col items-center justify-center p-4">
     <div class="w-full max-w-sm mx-auto">
-      <div class="bg-card rounded-2xl border border-border p-8 shadow-sm">
-        <div class="mb-8">
-          <QFlowLogo size="lg" />
-          <h2 class="text-xl font-bold text-foreground mt-5">Create Admin Account</h2>
+      <div class="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+        <div class="gradient-brand bg-grid px-8 pt-8 pb-9 text-center">
+          <QFlowLogo size="lg" tone="light" />
+          <p class="mt-2.5 text-xs font-medium uppercase tracking-[0.2em] text-gray-400">Queue Management System</p>
+        </div>
+
+        <div class="px-8 pb-8 pt-7">
+          <h2 class="text-xl font-bold text-foreground">Create Admin Account</h2>
           <p class="text-sm text-muted-foreground mt-1">Sign up to manage the enterprise queue</p>
         </div>
         <form @submit.prevent="handleSubmit" class="space-y-4">
           <div class="space-y-1.5">
-            <label class="block text-sm font-semibold text-foreground">Email</label>
-            <input
-              v-model="email"
-              type="email"
-              autocomplete="email"
-              :class="['w-full px-3 py-2.5 rounded-md border bg-input-bg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm', touched.email && fieldErrors.email ? 'border-danger' : 'border-border']"
-              placeholder="e.g. admin@qflow.com"
-              @blur="validateField('email')"
-              @input="touched.email && validateField('email')"
-            />
-            <p v-if="touched.email && fieldErrors.email" class="text-xs text-danger">{{ fieldErrors.email }}</p>
+            <label class="block text-sm font-semibold text-foreground">Employee ID</label>
+            <div class="relative">
+              <IdCard class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                v-model="employeeId"
+                type="text"
+                autocomplete="username"
+                :class="['w-full rounded-lg border bg-input-bg py-2.5 pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent', touched.employeeId && fieldErrors.employeeId ? 'border-danger' : 'border-border']"
+                placeholder="e.g. ADM-002"
+                @blur="validateField('employeeId')"
+                @input="touched.employeeId && validateField('employeeId')"
+              />
+            </div>
+            <p v-if="touched.employeeId && fieldErrors.employeeId" class="text-xs text-danger">{{ fieldErrors.employeeId }}</p>
           </div>
           <div class="space-y-1.5">
             <label class="block text-sm font-semibold text-foreground">Full Name</label>
-            <input
-              v-model="fullName"
-              autocomplete="name"
-              :class="['w-full px-3 py-2.5 rounded-md border bg-input-bg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm', touched.fullName && fieldErrors.fullName ? 'border-danger' : 'border-border']"
-              placeholder="Your full name"
-              @blur="validateField('fullName')"
-              @input="touched.fullName && validateField('fullName')"
-            />
+            <div class="relative">
+              <UserRound class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                v-model="fullName"
+                autocomplete="name"
+                :class="['w-full rounded-lg border bg-input-bg py-2.5 pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent', touched.fullName && fieldErrors.fullName ? 'border-danger' : 'border-border']"
+                placeholder="Your full name"
+                @blur="validateField('fullName')"
+                @input="touched.fullName && validateField('fullName')"
+              />
+            </div>
             <p v-if="touched.fullName && fieldErrors.fullName" class="text-xs text-danger">{{ fieldErrors.fullName }}</p>
           </div>
           <div class="space-y-1.5">
             <label class="block text-sm font-semibold text-foreground">Password</label>
-            <input
-              v-model="pw"
-              type="password"
-              autocomplete="new-password"
-              :class="['w-full px-3 py-2.5 rounded-md border bg-input-bg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm', touched.pw && fieldErrors.pw ? 'border-danger' : 'border-border']"
-              placeholder="At least 8 chars, one letter and one number"
-              @blur="validateField('pw')"
-              @input="touched.pw && validateField('pw')"
-            />
+            <div class="relative">
+              <Lock class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                v-model="pw"
+                :type="showPw ? 'text' : 'password'"
+                autocomplete="new-password"
+                :class="['w-full rounded-lg border bg-input-bg py-2.5 pl-10 pr-10 text-sm text-foreground placeholder:text-muted-foreground transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent', touched.pw && fieldErrors.pw ? 'border-danger' : 'border-border']"
+                placeholder="At least 8 chars, one letter and one number"
+                @blur="validateField('pw')"
+                @input="touched.pw && validateField('pw')"
+              />
+              <button
+                type="button"
+                class="absolute inset-y-0 right-0 flex w-10 cursor-pointer items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                :aria-label="showPw ? 'Hide password' : 'Show password'"
+                @click="showPw = !showPw"
+              >
+                <component :is="showPw ? EyeOff : Eye" class="h-4 w-4" />
+              </button>
+            </div>
             <p v-if="touched.pw && fieldErrors.pw" class="text-xs text-danger">{{ fieldErrors.pw }}</p>
           </div>
           <div class="space-y-1.5">
             <label class="block text-sm font-semibold text-foreground">Confirm Password</label>
-            <input
-              v-model="confirmPw"
-              type="password"
-              autocomplete="new-password"
-              :class="['w-full px-3 py-2.5 rounded-md border bg-input-bg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm', touched.confirmPw && fieldErrors.confirmPw ? 'border-danger' : 'border-border']"
-              placeholder="Re-enter password"
-              @blur="validateField('confirmPw')"
-              @input="touched.confirmPw && validateField('confirmPw')"
-            />
+            <div class="relative">
+              <Lock class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                v-model="confirmPw"
+                :type="showConfirmPw ? 'text' : 'password'"
+                autocomplete="new-password"
+                :class="['w-full rounded-lg border bg-input-bg py-2.5 pl-10 pr-10 text-sm text-foreground placeholder:text-muted-foreground transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent', touched.confirmPw && fieldErrors.confirmPw ? 'border-danger' : 'border-border']"
+                placeholder="Re-enter password"
+                @blur="validateField('confirmPw')"
+                @input="touched.confirmPw && validateField('confirmPw')"
+              />
+              <button
+                type="button"
+                class="absolute inset-y-0 right-0 flex w-10 cursor-pointer items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                :aria-label="showConfirmPw ? 'Hide password' : 'Show password'"
+                @click="showConfirmPw = !showConfirmPw"
+              >
+                <component :is="showConfirmPw ? EyeOff : Eye" class="h-4 w-4" />
+              </button>
+            </div>
             <p v-if="touched.confirmPw && fieldErrors.confirmPw" class="text-xs text-danger">{{ fieldErrors.confirmPw }}</p>
           </div>
           <div v-if="err" class="flex items-start gap-2.5 p-3 bg-danger-light border border-danger-light-border rounded-md">
@@ -141,8 +178,9 @@ const handleSubmit = async () => {
           </button>
         </form>
       </div>
-      <p class="text-sm text-muted-foreground mt-6 text-center">
-        <NuxtLink to="/admin" class="font-semibold text-primary hover:text-primary-hover">Back to dashboard</NuxtLink>
+      <p class="mt-6 text-center text-sm text-muted-foreground">
+        Already have an account?
+        <NuxtLink to="/" class="font-semibold text-primary transition-colors hover:text-primary-hover">Sign in</NuxtLink>
       </p>
     </div>
   </div>

@@ -2,10 +2,10 @@
 import DashboardLayout from '~/layouts/dashboard.vue'
 import { LayoutDashboard, List, History } from 'lucide-vue-next'
 
-definePageMeta({ layout: false, middleware: 'auth' })
+definePageMeta({ layout: false })
 
 const { user, logout } = useAuth()
-const { overview, refresh, shiftRequired, reset } = useStaffSession()
+const { overview, refresh, fetchHistory, shiftRequired, reset } = useStaffSession()
 
 const activePage = ref('overview')
 const selectedTicketId = ref<string | null>(null)
@@ -15,6 +15,27 @@ const navItems = [
   { key: 'queue', label: 'Queue', icon: List },
   { key: 'history', label: 'History', icon: History },
 ]
+
+const route = useRoute()
+const router = useRouter()
+
+const staffPages = ['overview', 'queue', 'history']
+const pageQuery = route.query.page
+if (typeof pageQuery === 'string' && (staffPages as string[]).includes(pageQuery)) {
+  activePage.value = pageQuery
+}
+
+const setPage = (page: string) => {
+  activePage.value = page
+  const urlPage = page === 'ticket-detail' ? 'queue' : page
+  const query = { ...route.query }
+  if (urlPage === 'overview') {
+    delete query.page
+  } else {
+    query.page = urlPage
+  }
+  router.replace({ query })
+}
 
 const { message, visible, showToast } = useToast()
 provide('showToast', showToast)
@@ -31,6 +52,7 @@ onMounted(async () => {
     navigateTo('/staff/counter')
     return
   }
+  fetchHistory()
   timer = setInterval(() => refresh(true), 8000)
 })
 
@@ -57,7 +79,7 @@ const handleSignOut = async () => {
       :userName="userName"
       :userRole="userRole"
       title="Staff Dashboard"
-      @navigate="activePage = $event"
+      @navigate="setPage"
       @signOut="handleSignOut"
     >
       <StaffOverview

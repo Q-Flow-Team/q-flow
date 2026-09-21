@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Loader2, Unlink, Copy, Check, Plus } from 'lucide-vue-next'
+import { Loader2, Unlink, Copy, Check, Plus, X } from 'lucide-vue-next'
 import { apiGet, apiPost, apiPatch } from '~/utils/api'
 import { trim, isValidCounterNumber, isValidCounterName } from '~/utils/validate'
 
@@ -139,6 +139,13 @@ const copyId = async (c: Counter) => {
     showToast('Unable to copy')
   }
 }
+
+const lockScroll = (locked: boolean) => {
+  if (import.meta.client) document.body.style.overflow = locked ? 'hidden' : ''
+}
+
+watch(showForm, (open) => lockScroll(open))
+onUnmounted(() => lockScroll(false))
 </script>
 
 <template>
@@ -149,56 +156,93 @@ const copyId = async (c: Counter) => {
       </div>
       <button class="btn btn-sm btn-primary" @click="openForm">
         <Plus class="h-4 w-4" />
-        {{ showForm ? 'Close' : 'Add Counter' }}
+        Add Counter
       </button>
     </div>
 
-    <div v-if="showForm" class="card p-5">
-      <h3 class="mb-4 text-sm font-bold text-foreground">New Counter</h3>
-      <div class="flex flex-col gap-2.5 sm:flex-row">
-        <div>
-          <input
-            v-model.number="newNumber"
-            type="number"
-            min="1"
-            max="999"
-            step="1"
-            class="input sm:w-28"
-            :class="touched.number && formErrors.number ? 'border-danger' : ''"
-            placeholder="No."
-            @blur="validateField('number')"
-            @input="touched.number && validateField('number')"
-          />
-          <p v-if="touched.number && formErrors.number" class="mt-1 text-xs text-danger">{{ formErrors.number }}</p>
+    <!-- Add counter modal -->
+    <Teleport to="body">
+      <div
+        v-if="showForm"
+        class="fixed inset-0 z-[100] overflow-y-auto bg-black/60 backdrop-blur-[2px]"
+        @click.self="openForm"
+      >
+        <div class="relative flex min-h-full items-center justify-center p-4 sm:p-6">
+          <div class="card relative my-auto w-full max-w-md p-6 shadow-pop">
+            <div class="relative mb-5 text-center">
+              <button class="absolute right-0 top-0 cursor-pointer rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" @click="openForm">
+                <X class="h-4 w-4" />
+              </button>
+              <h3 class="text-base font-bold text-foreground">New Counter</h3>
+              <p class="mt-0.5 text-xs text-muted-foreground">Add a new counter to the branch.</p>
+            </div>
+
+            <div class="space-y-4">
+              <div class="space-y-1.5">
+                <label class="label" for="counter-number">Counter Number</label>
+                <input
+                  id="counter-number"
+                  v-model.number="newNumber"
+                  type="number"
+                  min="1"
+                  max="999"
+                  step="1"
+                  class="input"
+                  :class="touched.number && formErrors.number ? 'border-danger' : ''"
+                  placeholder="e.g. 5"
+                  @blur="validateField('number')"
+                  @input="touched.number && validateField('number')"
+                />
+                <p v-if="touched.number && formErrors.number" class="text-xs text-danger">{{ formErrors.number }}</p>
+              </div>
+              <div class="space-y-1.5">
+                <label class="label" for="counter-name">Counter Name</label>
+                <input
+                  id="counter-name"
+                  v-model="newName"
+                  class="input"
+                  :class="touched.name && formErrors.name ? 'border-danger' : ''"
+                  placeholder="e.g. VIP / Priority Desk"
+                  @blur="validateField('name')"
+                  @input="touched.name && validateField('name')"
+                  @keydown.enter="handleCreate"
+                />
+                <p v-if="touched.name && formErrors.name" class="text-xs text-danger">{{ formErrors.name }}</p>
+              </div>
+            </div>
+
+            <div class="mt-6 flex gap-3">
+              <button :disabled="creating" class="btn btn-md btn-primary flex-1" @click="handleCreate">
+                <Loader2 v-if="creating" class="h-4 w-4 animate-spin" />
+                Create
+              </button>
+              <button class="btn btn-md btn-outline flex-1" @click="openForm">Cancel</button>
+            </div>
+          </div>
         </div>
-        <div class="flex-1">
-          <input
-            v-model="newName"
-            class="input w-full"
-            :class="touched.name && formErrors.name ? 'border-danger' : ''"
-            placeholder="Counter name, e.g. VIP / Priority Desk"
-            @blur="validateField('name')"
-            @input="touched.name && validateField('name')"
-            @keydown.enter="handleCreate"
-          />
-          <p v-if="touched.name && formErrors.name" class="mt-1 text-xs text-danger">{{ formErrors.name }}</p>
-        </div>
-        <button
-          :disabled="creating"
-          class="btn btn-sm btn-primary"
-          @click="handleCreate"
-        >
-          <Loader2 v-if="creating" class="h-3.5 w-3.5 animate-spin" />
-          Create
-        </button>
-        <button class="btn btn-sm btn-outline" @click="showForm = false">Cancel</button>
       </div>
-    </div>
+    </Teleport>
 
     <p v-if="errorMsg" class="text-xs text-danger">{{ errorMsg }}</p>
 
     <div class="card overflow-hidden">
-      <SkeletonTable v-if="loading" :rows="counters.length || 5" :cols="3" />
+      <div v-if="loading" class="space-y-5">
+        <div class="flex items-center justify-between border-b border-border bg-white/40 px-5 py-4 dark:bg-white/5">
+          <Skeleton class="h-4 w-16" />
+          <Skeleton class="h-4 w-24" />
+        </div>
+        <div class="divide-y divide-border">
+          <div v-for="r in 4" :key="r" class="flex items-center gap-3 px-5 py-3.5">
+            <Skeleton class="h-4 w-10 flex-shrink-0" />
+            <div class="min-w-0 flex-1 space-y-1.5">
+              <Skeleton class="h-3.5 w-2/3" />
+              <Skeleton class="h-3 w-1/3" />
+            </div>
+            <Skeleton class="h-5 w-20 flex-shrink-0 rounded-full" />
+            <Skeleton class="h-5 w-10 flex-shrink-0 rounded-full" />
+          </div>
+        </div>
+      </div>
       <div v-else-if="counters.length === 0" class="px-5 py-16 text-center text-sm text-muted-foreground">
         No counters configured yet.
       </div>
@@ -232,10 +276,10 @@ const copyId = async (c: Counter) => {
                 <span
                   :class="[
                     'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold',
-                    c.isActive ? 'bg-success-light text-success' : 'bg-muted text-muted-foreground',
+                    c.isActive ? 'bg-primary-light text-primary-dark-text' : 'bg-muted text-muted-foreground',
                   ]"
                 >
-                  <span :class="['h-1.5 w-1.5 rounded-full', c.isActive ? 'bg-success' : 'bg-muted-foreground']" />
+                  <span :class="['h-1.5 w-1.5 rounded-full', c.isActive ? 'bg-primary' : 'bg-muted-foreground']" />
                   {{ c.isActive ? 'Active' : 'Inactive' }}
                 </span>
               </td>
