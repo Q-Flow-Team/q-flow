@@ -6,11 +6,18 @@ definePageMeta({ layout: false })
 
 const { user, logout, setUser } = useAuth()
 
-const counters = ref<Array<{ id: string; counterNumber: number; counterName: string; isActive: boolean; currentStaff: { id: string } | null }>>([])
-const sel = ref<string | null>(null)
+// The deployed /staff/counters endpoint lists only counters that are currently
+// staffed, and deliberately omits their IDs — so counter selection here is
+// read-only and binding happens through the manual Counter ID entry.
+interface StaffedCounterInfo {
+  activeCounter: string
+  counterNumber: number
+  isOnline: boolean
+}
+
+const counters = ref<StaffedCounterInfo[]>([])
 const manualId = ref('')
 const loading = ref(true)
-const listForbidden = ref(false)
 const binding = ref(false)
 const errorMsg = ref('')
 const copied = ref(false)
@@ -20,25 +27,16 @@ const activeCounter = computed(() => user.value?.activeCounter ?? null)
 const loadCounters = async () => {
   loading.value = true
   try {
-    const res = await apiGet<{ counters: any[] }>('/staff/counters')
+    const res = await apiGet<{ counters: StaffedCounterInfo[] }>('/staff/counters')
     counters.value = res.counters || []
-    listForbidden.value = false
   } catch (err: any) {
-    if (err?.status === 403 || err?.status === 401) {
-      listForbidden.value = true
-    } else {
-      errorMsg.value = err?.message || 'Could not load counters.'
-    }
+    errorMsg.value = err?.message || 'Could not load counters.'
   } finally {
     loading.value = false
   }
 }
 
 onMounted(loadCounters)
-
-const availableCounters = computed(() =>
-  counters.value.filter((c) => c.isActive && (!c.currentStaff || c.currentStaff.id === user.value?.id)),
-)
 
 const bind = async (counterId: string) => {
   if (!counterId) return
@@ -53,10 +51,6 @@ const bind = async (counterId: string) => {
   } finally {
     binding.value = false
   }
-}
-
-const handleSelect = () => {
-  if (sel.value) bind(sel.value)
 }
 
 const handleManualBind = () => {
@@ -147,40 +141,40 @@ const copyId = async () => {
           </div>
 
           <template v-else>
-            <div v-if="availableCounters.length" class="space-y-2 mb-6">
-              <button
-                v-for="c in availableCounters"
-                :key="c.id"
-                @click="sel = c.id"
-                :class="[
-                  'w-full flex items-center justify-between p-4 rounded-xl border transition-all',
-                  sel === c.id ? 'border-primary bg-primary-lighter' : 'border-border hover:border-primary-border hover:bg-bg-page'
-                ]"
-              >
-                <div class="flex items-center gap-3">
-                  <div
+            <div v-if="counters.length" class="mb-6">
+              <p class="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                Counters currently staffed
+              </p>
+              <div class="space-y-2">
+                <div
+                  v-for="c in counters"
+                  :key="c.counterNumber"
+                  class="flex items-center justify-between p-3.5 rounded-xl border border-border bg-bg-page"
+                >
+                  <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-md flex items-center justify-center font-bold text-sm bg-muted text-foreground">
+                      {{ c.counterNumber }}
+                    </div>
+                    <div class="text-left">
+                      <p class="font-semibold text-sm text-foreground">{{ c.activeCounter }}</p>
+                      <p class="text-xs text-muted-foreground">Counter {{ c.counterNumber }}</p>
+                    </div>
+                  </div>
+                  <span
                     :class="[
-                      'w-9 h-9 rounded-md flex items-center justify-center font-bold text-sm',
-                      sel === c.id ? 'bg-primary text-white' : 'bg-muted text-foreground'
+                      'inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-2.5 py-1',
+                      c.isOnline ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground',
                     ]"
                   >
-                    {{ c.counterNumber }}
-                  </div>
-                  <div class="text-left">
-                    <span :class="['font-semibold text-sm block', sel === c.id ? 'text-primary-dark-text' : 'text-foreground']">
-                      {{ c.counterName }}
-                    </span>
-                    <span class="text-xs text-muted-foreground">Counter {{ c.counterNumber }}</span>
-                  </div>
+                    <span :class="['h-1.5 w-1.5 rounded-full', c.isOnline ? 'bg-success' : 'bg-muted-foreground']" />
+                    {{ c.isOnline ? 'Online' : 'Offline' }}
+                  </span>
                 </div>
-                <svg v-if="sel === c.id" class="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              </button>
+              </div>
             </div>
 
-            <!-- Fallback: counter id entry when the counter directory is admin-only -->
-            <div v-else class="mb-6 space-y-3">
+            <!-- Counter ID entry: the only way to bind on the deployed backend -->
+            <div class="mt-4 space-y-3">
               <div class="p-3 bg-primary-lighter border border-primary-border rounded-md">
                 <p class="text-xs text-primary-dark-text leading-relaxed">
                   Enter the Counter ID provided by your branch administrator to start your shift.
@@ -195,19 +189,8 @@ const copyId = async () => {
             </div>
 
             <button
-              v-if="availableCounters.length"
-              :disabled="!sel || binding"
-              class="w-full inline-flex items-center justify-center gap-2 font-semibold rounded-md transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed select-none bg-primary text-white hover:bg-primary-hover active:bg-primary-active px-5 py-3 text-base"
-              @click="handleSelect"
-            >
-              <Loader2 v-if="binding" class="w-4 h-4 animate-spin" />
-              {{ binding ? 'Starting…' : 'Start Shift' }}
-            </button>
-
-            <button
-              v-else
               :disabled="!manualId.trim() || binding"
-              class="w-full inline-flex items-center justify-center gap-2 font-semibold rounded-md transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed select-none bg-primary text-white hover:bg-primary-hover active:bg-primary-active px-5 py-3 text-base"
+              class="mt-4 w-full inline-flex items-center justify-center gap-2 font-semibold rounded-md transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed select-none bg-primary text-white hover:bg-primary-hover active:bg-primary-active px-5 py-3 text-base"
               @click="handleManualBind"
             >
               <Loader2 v-if="binding" class="w-4 h-4 animate-spin" />

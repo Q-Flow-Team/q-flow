@@ -10,6 +10,8 @@ onMounted(init)
 const employeeId = ref('')
 const pw = ref('')
 const showPw = ref(false)
+const err = ref('')
+const loading = ref(false)
 const fieldErrors = ref<{ employeeId?: string; pw?: string }>({})
 const touched = ref<{ employeeId?: boolean; pw?: boolean }>({})
 
@@ -28,13 +30,29 @@ const validateField = (field: 'employeeId' | 'pw') => {
   }
 }
 
-const handleSubmit = () => {
+const handleSubmit = async () => {
   const errors: typeof fieldErrors.value = {}
   const employeeIdErr = validateEmployeeId()
   if (employeeIdErr) errors.employeeId = employeeIdErr
   if (!trim(pw.value)) errors.pw = 'Password is required.'
   fieldErrors.value = errors
   touched.value = { employeeId: true, pw: true }
+  if (Object.keys(errors).length) return
+  err.value = ''
+  loading.value = true
+  try {
+    const { login } = useAuth()
+    const res = await login(trim(employeeId.value), pw.value)
+    if (res.user.role === 'ADMIN') {
+      navigateTo('/admin')
+    } else {
+      navigateTo(res.user.activeCounter ? '/staff' : '/staff/counter')
+    }
+  } catch (e: any) {
+    err.value = e?.message || 'Sign in failed. Please try again.'
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -44,24 +62,25 @@ const handleSubmit = () => {
       <div class="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
         <div class="gradient-brand bg-grid px-8 pt-8 pb-9 text-center">
           <QFlowLogo size="lg" tone="light" />
-          <p class="mt-2.5 text-xs font-medium uppercase tracking-[0.2em] text-gray-400">Queue Management System</p>
         </div>
 
         <div class="px-8 pb-8 pt-7">
-          <h2 class="text-xl font-bold text-foreground">Sign In</h2>
-          <p class="text-sm text-muted-foreground mt-1">Welcome back to the Q-Flow dashboard</p>
+          <div class="text-center">
+            <h2 class="text-xl font-bold text-foreground">Sign In</h2>
+            <p class="text-sm text-muted-foreground mt-1">Sign in to access Q-Flow</p>
+          </div>
 
           <form @submit.prevent="handleSubmit" class="mt-6 space-y-4">
             <div class="space-y-1.5">
-              <label class="block text-sm font-semibold text-foreground">Employee ID</label>
+              <label class="block text-sm font-semibold text-foreground">ID</label>
               <div class="relative">
                 <IdCard class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   v-model="employeeId"
                   type="text"
                   autocomplete="username"
+                  placeholder="Enter ID"
                   :class="['w-full rounded-lg border bg-input-bg py-2.5 pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent', fieldErrors.employeeId ? 'border-danger' : 'border-border']"
-                  placeholder="e.g. ADM-001"
                   @blur="validateField('employeeId')"
                   @input="touched.employeeId && validateField('employeeId')"
                 />
@@ -96,21 +115,18 @@ const handleSubmit = () => {
 
             <button
               type="submit"
-              class="w-full inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-base font-semibold text-white transition-all duration-150 select-none hover:bg-primary-hover active:bg-primary-active focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              :disabled="loading"
+              class="w-full inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-base font-semibold text-white transition-all duration-150 select-none hover:bg-primary-hover active:bg-primary-active focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Sign In
+              {{ loading ? 'Signing in…' : 'Sign In' }}
               <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
             </button>
+            <p v-if="err" class="text-center text-xs font-medium text-danger">{{ err }}</p>
           </form>
         </div>
       </div>
-
-      <p class="mt-6 text-center text-sm text-muted-foreground">
-        New administrator?
-        <NuxtLink to="/admin/register" class="font-semibold text-primary transition-colors hover:text-primary-hover">Create an account</NuxtLink>
-      </p>
     </div>
   </div>
 </template>

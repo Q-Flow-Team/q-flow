@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { Loader2, UserCheck, Search, Play, Check, SkipForward } from 'lucide-vue-next'
+import { Loader2, UserCheck, Search, Bell, XCircle, Check, SkipForward } from 'lucide-vue-next'
 import { formatTime, channelLabel } from '~/utils/format'
 
 const emit = defineEmits<{ selectTicket: [id: string] }>()
 
-const { overview, loading, callNext, startService, completeService, skipTicket, trackTicket, error } = useStaffSession()
+const { overview, loading, callNext, recallTicket, completeService, noShowTicket, skipTicket, trackTicket, error } = useStaffSession()
 const showToast = inject<(msg: string) => void>('showToast', () => {})
 const search = ref('')
 const filter = ref('')
 const calling = ref(false)
-const acting = ref<{ id: string; action: 'start' | 'complete' | 'skip' } | null>(null)
+const acting = ref<{ id: string; action: 'recall' | 'no-show' | 'complete' | 'skip' } | null>(null)
 
 const activeTicket = computed(() => overview.value?.activeTicket ?? null)
 const waitingCount = computed(() => overview.value?.waitingCount ?? 0)
@@ -28,6 +28,9 @@ const rows = computed(() => {
 const handleCallNext = async () => {
   calling.value = true
   try {
+    if (activeTicket.value && ['CALLED', 'IN_SERVICE'].includes(activeTicket.value.status)) {
+      await completeService(activeTicket.value.id)
+    }
     const ticket = await callNext()
     if (ticket) showToast(`Calling ${ticket.ticketNumber} — ${ticket.customerName}`)
   } catch (err: any) {
@@ -37,16 +40,19 @@ const handleCallNext = async () => {
   }
 }
 
-const handleAction = async (t: any, action: 'start' | 'complete' | 'skip') => {
+const handleAction = async (t: any, action: 'recall' | 'no-show' | 'complete' | 'skip') => {
   acting.value = { id: t.id, action }
   try {
     const ticket =
-      action === 'start'
-        ? await startService(t.id)
+      action === 'recall'
+        ? await recallTicket(t.id)
         : action === 'complete'
           ? await completeService(t.id)
-          : await skipTicket(t.id)
-    const verb = action === 'start' ? 'started' : action === 'complete' ? 'completed' : 'skipped'
+          : action === 'skip'
+            ? await skipTicket(t.id)
+            : await noShowTicket(t.id)
+    const verb =
+      action === 'recall' ? 're-notified' : action === 'complete' ? 'completed' : action === 'skip' ? 'skipped to back of queue' : 'marked as no-show'
     if (ticket) showToast(`${ticket.ticketNumber} ${verb} — ${ticket.customerName}`)
   } catch (err: any) {
     showToast(err?.message || `Failed to ${action} this customer`)
@@ -103,14 +109,14 @@ const handleSelect = (t: any) => {
         <div class="flex flex-wrap items-center gap-2">
           <StatusPill :status="activeTicket.status" />
           <button
-            v-if="activeTicket.status === 'CALLED'"
+            v-if="['CALLED', 'IN_SERVICE'].includes(activeTicket.status)"
             :disabled="acting !== null"
-            class="btn btn-sm btn-primary"
-            @click="handleAction(activeTicket, 'start')"
+            class="btn btn-sm btn-outline"
+            @click="handleAction(activeTicket, 'recall')"
           >
-            <Loader2 v-if="acting?.id === activeTicket.id && acting?.action === 'start'" class="h-3.5 w-3.5 animate-spin" />
-            <Play v-else class="h-3.5 w-3.5" />
-            Start Service
+            <Loader2 v-if="acting?.id === activeTicket.id && acting?.action === 'recall'" class="h-3.5 w-3.5 animate-spin" />
+            <Bell v-else class="h-3.5 w-3.5" />
+            Recall
           </button>
           <button
             v-if="activeTicket.status === 'IN_SERVICE'"
@@ -123,6 +129,17 @@ const handleSelect = (t: any) => {
             Complete
           </button>
           <button
+            v-if="activeTicket.status === 'CALLED'"
+            :disabled="acting !== null"
+            class="btn btn-sm btn-ghost-danger"
+            @click="handleAction(activeTicket, 'no-show')"
+          >
+            <Loader2 v-if="acting?.id === activeTicket.id && acting?.action === 'no-show'" class="h-3.5 w-3.5 animate-spin" />
+            <XCircle v-else class="h-3.5 w-3.5" />
+            No Show
+          </button>
+          <button
+            v-if="activeTicket.status === 'CALLED'"
             :disabled="acting !== null"
             class="btn btn-sm btn-outline"
             @click="handleAction(activeTicket, 'skip')"

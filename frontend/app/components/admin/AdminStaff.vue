@@ -205,7 +205,7 @@ onUnmounted(() => lockScroll(false))
                 autocomplete="new-password"
                 class="input pr-10"
                 :class="resetIssues.length > 0 && 'border-danger'"
-                placeholder="New password (min 8 chars, letter + number)"
+                placeholder="New password (min 8 chars, upper + lower + number)"
               />
               <button
                 type="button"

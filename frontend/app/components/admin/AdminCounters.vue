@@ -36,7 +36,7 @@ const validateForm = () => {
   }
   const name = trim(newName.value)
   if (!name) errors.name = 'Counter name is required.'
-  else if (!isValidCounterName(name)) errors.name = 'Counter name can only use letters, numbers, & ( ) . , / - and single spaces.'
+  else if (!isValidCounterName(name)) errors.name = 'Counter name must be between 1 and 100 characters.'
   formErrors.value = errors
   return !Object.values(errors).some(Boolean)
 }

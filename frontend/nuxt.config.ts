@@ -8,8 +8,7 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   runtimeConfig: {
     public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://q-flow-backend.vercel.app/api/v1',
-      useMock: true,
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://qflowee-backend.vercel.app/api/v1',
     },
   },
   routeRules: {

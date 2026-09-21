@@ -16,7 +16,7 @@ defineEmits<{ goToQueue: [] }>()
 
 const { overview, sessionTickets, loading } = useStaffSession()
 
-const waiting = computed(() => overview.value?.waitingCount ?? 0)
+const waiting = computed(() => overview.value?.waiting?.length ?? 0)
 const activeTicket = computed(() => overview.value?.activeTicket ?? null)
 const servedCount = computed(() => sessionTickets.value.filter((t) => t.status === 'SERVED').length)
 const handledCount = computed(() => sessionTickets.value.filter((t) => !['WAITING', 'CALLED'].includes(t.status)).length)
