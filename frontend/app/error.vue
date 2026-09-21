@@ -32,29 +32,32 @@ const goBack = () => {
 const goHome = () => {
   clearError({ redirect: '/' })
 }
+
+const { init } = useTheme()
+onMounted(init)
 </script>
 
 <template>
   <div class="min-h-screen bg-bg-customer flex items-center justify-center px-4 py-10">
     <div class="w-full max-w-md">
       <div class="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-        <div class="gradient-brand bg-grid-dark px-8 pt-8 pb-10 text-center">
-          <span class="font-extrabold uppercase tracking-[0.18em] leading-none text-white">QFLOW</span>
-          <div class="mt-6 text-6xl font-extrabold tracking-tight text-white tabular-nums">
+        <div class="px-8 pt-10 pb-7 text-center border-b border-border">
+          <QFlowLogo size="lg" />
+          <div class="mt-6 text-6xl font-extrabold tracking-tight text-foreground tabular-nums">
             {{ statusCode || '404' }}
           </div>
         </div>
 
-        <div class="px-8 py-7">
-          <div class="inline-flex items-center gap-2 rounded-full bg-danger-light border border-danger-light-border px-3 py-1">
+        <div class="px-8 py-8 text-center">
+          <div class="mx-auto inline-flex items-center gap-2 rounded-full bg-danger-light border border-danger-light-border px-3 py-1">
             <AlertTriangle class="w-3.5 h-3.5 text-danger" />
             <span class="text-xs font-bold text-danger uppercase tracking-wider">Error</span>
           </div>
 
-          <h1 class="mt-4 text-xl font-bold text-foreground">{{ title }}</h1>
-          <p class="mt-1.5 text-sm text-muted-foreground leading-relaxed">{{ description }}</p>
+          <h1 class="mt-5 text-2xl font-extrabold text-foreground">{{ title }}</h1>
+          <p class="mx-auto mt-2 max-w-sm text-sm text-muted-foreground leading-relaxed">{{ description }}</p>
 
-          <div class="mt-7 space-y-2.5">
+          <div class="mt-8 space-y-2.5">
             <button class="btn btn-md btn-primary w-full justify-center" @click="goHome">
               <Home class="w-4 h-4" />
               Back to Home
@@ -65,7 +68,7 @@ const goHome = () => {
             </button>
           </div>
 
-          <p v-if="error?.url && !is404" class="mt-6 text-center text-xs text-muted-foreground break-all">
+          <p v-if="error?.url && !is404" class="mt-6 text-xs text-muted-foreground break-all">
             {{ error.url }}
           </p>
         </div>

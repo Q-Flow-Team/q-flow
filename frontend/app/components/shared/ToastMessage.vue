@@ -5,13 +5,15 @@ defineProps<{ message: string; visible: boolean }>()
 <template>
   <div
     :class="[
-      'fixed bottom-5 right-5 z-[100] flex items-center gap-2.5 px-4 py-3 bg-slate-900 text-white text-sm font-medium rounded-2xl shadow-pop ring-1 ring-white/10 pointer-events-none transition-all duration-200',
-      visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
+      'fixed top-5 right-5 z-[100] flex max-w-sm items-center gap-2.5 rounded-xl border border-border bg-white px-4 py-3 text-sm font-medium text-gray-900 shadow-pop pointer-events-none transition-all duration-300',
+      visible ? 'translate-y-0 opacity-100' : '-translate-y-3 opacity-0'
     ]"
   >
-    <svg class="w-4 h-4 text-success-check flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-    </svg>
+    <span class="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-success-light">
+      <svg class="h-3.5 w-3.5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+      </svg>
+    </span>
     {{ message }}
   </div>
 </template>

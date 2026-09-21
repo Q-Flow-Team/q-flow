@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Loader2, Eye, EyeOff, IdCard, Lock } from 'lucide-vue-next'
+import { Eye, EyeOff, IdCard, Lock } from 'lucide-vue-next'
 import { trim, isValidEmployeeId, employeeIdMessage } from '~/utils/validate'
 
 definePageMeta({ layout: false })
@@ -10,10 +10,8 @@ onMounted(init)
 const employeeId = ref('')
 const pw = ref('')
 const showPw = ref(false)
-const err = ref('')
 const fieldErrors = ref<{ employeeId?: string; pw?: string }>({})
 const touched = ref<{ employeeId?: boolean; pw?: boolean }>({})
-const loading = ref(false)
 
 const validateEmployeeId = () => {
   const v = trim(employeeId.value)
@@ -30,29 +28,13 @@ const validateField = (field: 'employeeId' | 'pw') => {
   }
 }
 
-const handleSubmit = async () => {
+const handleSubmit = () => {
   const errors: typeof fieldErrors.value = {}
   const employeeIdErr = validateEmployeeId()
   if (employeeIdErr) errors.employeeId = employeeIdErr
   if (!trim(pw.value)) errors.pw = 'Password is required.'
   fieldErrors.value = errors
   touched.value = { employeeId: true, pw: true }
-  if (Object.keys(errors).length) return
-  err.value = ''
-  loading.value = true
-  try {
-    const { login } = useAuth()
-    const res = await login(trim(employeeId.value), pw.value)
-    if (res.user.role === 'ADMIN') {
-      navigateTo('/admin')
-    } else {
-      navigateTo(res.user.activeCounter ? '/staff' : '/staff/counter')
-    }
-  } catch (e: any) {
-    err.value = e?.message || 'Sign in failed. Please try again.'
-  } finally {
-    loading.value = false
-  }
 }
 </script>
 
@@ -67,7 +49,7 @@ const handleSubmit = async () => {
 
         <div class="px-8 pb-8 pt-7">
           <h2 class="text-xl font-bold text-foreground">Sign In</h2>
-          <p class="text-sm text-muted-foreground mt-1">Access your Q-Flow dashboard</p>
+          <p class="text-sm text-muted-foreground mt-1">Welcome back to the Q-Flow dashboard</p>
 
           <form @submit.prevent="handleSubmit" class="mt-6 space-y-4">
             <div class="space-y-1.5">
@@ -112,21 +94,12 @@ const handleSubmit = async () => {
               <p v-if="fieldErrors.pw" class="text-xs text-danger mt-1">{{ fieldErrors.pw }}</p>
             </div>
 
-            <div v-if="err" class="flex items-start gap-2.5 rounded-lg border border-danger-light-border bg-danger-light p-3">
-              <svg class="h-4 w-4 flex-shrink-0 text-danger mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
-              <p class="text-sm text-danger">{{ err }}</p>
-            </div>
-
             <button
               type="submit"
-              :disabled="loading"
-              class="w-full inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-base font-semibold text-white transition-all duration-150 select-none hover:bg-primary-hover active:bg-primary-active focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
+              class="w-full inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-base font-semibold text-white transition-all duration-150 select-none hover:bg-primary-hover active:bg-primary-active focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             >
-              <Loader2 v-if="loading" class="h-4 w-4 animate-spin" />
-              {{ loading ? 'Signing in…' : 'Sign In' }}
-              <svg v-if="!loading" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              Sign In
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
             </button>

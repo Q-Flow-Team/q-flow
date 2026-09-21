@@ -234,8 +234,8 @@ body {
   z-index: 2;
   background-color: var(--color-card);
   box-shadow:
-    0 1px 3px -1px rgb(17 24 39 / 0.35),
-    0 10px 24px -8px rgb(17 24 39 / 0.55);
+    0 1px 3px -1px rgb(17 24 39 / 0.16),
+    0 10px 22px -10px rgb(17 24 39 / 0.22);
 }
 .table-gmail tbody tr:hover td {
   position: relative;
