@@ -1,9 +1,50 @@
 import QRCode from 'qrcode';
 import { prisma } from '../config/db.js';
 import bcrypt from 'bcrypt';
-import { UserRole, TicketStatus, NotificationChannel  } from '@qflow/database/client';
+import { UserRole, TicketStatus, NotificationChannel } from '@qflow/database/client';
 import { broadcastQueueEvent, SOCKET_EVENTS } from '../sockets/queue.socket.js';
+import { sanitizeCustomerName, sanitizePhoneNumber } from './ticket.service.js';
 
+const BCRYPT_ROUNDS = 12;
+
+/**
+ * Local sanitization helpers for admin-provisioned data (users, counters)
+ */
+function sanitizeEmployeeId(id: string): string {
+  const trimmed = id.trim().toUpperCase();
+  if (!/^[A-Z0-9-]{3,20}$/.test(trimmed)) {
+    throw new Error('Employee ID must be 3-20 characters: letters, numbers, and hyphens only.');
+  }
+  return trimmed;
+}
+
+function sanitizeFullName(name: string): string {
+  const trimmed = name.trim().replace(/\s+/g, ' ');
+  if (trimmed.length < 2 || trimmed.length > 100) {
+    throw new Error('Full name must be between 2 and 100 characters.');
+  }
+  if (!/^[\p{L}\s.'-]+$/u.test(trimmed)) {
+    throw new Error('Full name contains invalid characters.');
+  }
+  return trimmed;
+}
+
+function sanitizeCounterName(name: string): string {
+  const trimmed = name.trim().replace(/\s+/g, ' ');
+  if (trimmed.length < 1 || trimmed.length > 100) {
+    throw new Error('Counter name must be between 1 and 100 characters.');
+  }
+  return trimmed;
+}
+
+function validatePasswordStrength(password: string): void {
+  if (typeof password !== 'string' || password.length < 8) {
+    throw new Error('Password must be at least 8 characters long.');
+  }
+  if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+    throw new Error('Password must contain uppercase, lowercase, and numeric characters.');
+  }
+}
 
 /**
  * Generates static QR code assets (Base64 Data URL and SVG String)
@@ -37,7 +78,7 @@ export async function generateStaticBranchQRCode(targetUrl: string) {
   } catch (error) {
     console.error('QR code generation failed:', error);
     throw new Error('Failed to render static QR code assets.');
-    }
+  }
 }
 
 
@@ -46,6 +87,8 @@ export async function generateStaticBranchQRCode(targetUrl: string) {
  *  Create a new service counter
  */
 export async function createCounter(counterNumber: number, counterName: string) {
+  const sanitizedName = sanitizeCounterName(counterName);
+
   const existingCounter = await prisma.counter.findUnique({
     where: { counterNumber },
   });
@@ -57,7 +100,7 @@ export async function createCounter(counterNumber: number, counterName: string) 
   return await prisma.counter.create({
     data: {
       counterNumber,
-      counterName,
+      counterName: sanitizedName,
       isActive: true,
     },
   });
@@ -132,20 +175,24 @@ export async function createUser(data: {
   password: string;
   role?: UserRole;
 }) {
+  const employeeId = sanitizeEmployeeId(data.employeeId);
+  const fullName = sanitizeFullName(data.fullName);
+  validatePasswordStrength(data.password);
+
   const existingUser = await prisma.user.findUnique({
-    where: { employeeId: data.employeeId },
+    where: { employeeId },
   });
 
   if (existingUser) {
-    throw new Error(`Employee ID ${data.employeeId} is already registered.`);
+    throw new Error(`Employee ID ${employeeId} is already registered.`);
   }
 
-  const passwordHash = await bcrypt.hash(data.password, 10);
+  const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
 
   const user = await prisma.user.create({
     data: {
-      employeeId: data.employeeId,
-      fullName: data.fullName,
+      employeeId,
+      fullName,
       passwordHash,
       role: data.role || UserRole.COUNTER_STAFF,
     },
@@ -195,12 +242,14 @@ export async function getAllUsers(role?: UserRole) {
  * 3. Reset a user's password
  */
 export async function resetUserPassword(userId: string, newPassword: string) {
+  validatePasswordStrength(newPassword);
+
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
     throw new Error('User not found.');
   }
 
-  const passwordHash = await bcrypt.hash(newPassword, 10);
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
 
   await prisma.user.update({
     where: { id: userId },
@@ -220,6 +269,9 @@ export async function createPriorityTicket(data: {
   phoneNumber: string;
   preferredChannel?: NotificationChannel;
 }) {
+  const customerName = sanitizeCustomerName(data.customerName);
+  const phoneNumber = sanitizePhoneNumber(data.phoneNumber);
+
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
@@ -240,8 +292,8 @@ export async function createPriorityTicket(data: {
     return tx.ticket.create({
       data: {
         ticketNumber,
-        customerName: data.customerName,
-        phoneNumber: data.phoneNumber,
+        customerName,
+        phoneNumber,
         preferredChannel: data.preferredChannel || NotificationChannel.WHATSAPP,
         status: TicketStatus.WAITING,
         initialPosition: 1,
@@ -282,9 +334,15 @@ export async function overrideTicket(ticketId: string, input: TicketOverrideInpu
 
     const updateData: any = {};
 
-    if (input.customerName !== undefined) updateData.customerName = input.customerName;
-    if (input.phoneNumber !== undefined) updateData.phoneNumber = input.phoneNumber;
-    if (input.preferredChannel !== undefined) updateData.preferredChannel = input.preferredChannel;
+    if (input.customerName !== undefined) {
+      updateData.customerName = sanitizeCustomerName(input.customerName);
+    }
+    if (input.phoneNumber !== undefined) {
+      updateData.phoneNumber = sanitizePhoneNumber(input.phoneNumber);
+    }
+    if (input.preferredChannel !== undefined) {
+      updateData.preferredChannel = input.preferredChannel;
+    }
 
     if (input.status !== undefined) {
       updateData.status = input.status;
@@ -345,7 +403,7 @@ export async function getAllTickets(filters: {
   limit?: number;
 }) {
   const page = filters.page || 1;
-  const limit = filters.limit || 50;
+  const limit = Math.min(filters.limit || 50, 100);
   const skip = (page - 1) * limit;
 
   const whereClause: any = {};

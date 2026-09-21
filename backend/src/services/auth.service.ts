@@ -3,13 +3,14 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '../config/jwt.js';
 
-
 /**
  * Staff / Admin Login
  */
 export async function loginUser(employeeId: string, password: string) {
+  const normalizedEmployeeId = employeeId.trim().toUpperCase();
+
   const user = await prisma.user.findUnique({
-    where: { employeeId },
+    where: { employeeId: normalizedEmployeeId },
     include: { activeCounter: true },
   });
 

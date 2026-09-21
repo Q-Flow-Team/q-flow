@@ -6,16 +6,15 @@ import { createCounter, createUser, getAllUsers,
   getAllCounters, toggleCounterStatus, forceUnbindCounterShift, 
   createPriorityTicket} from '../services/admin.service.js';
 import { TicketStatus, UserRole } from '@qflow/database/client';
+import { getSafeErrorMessage } from '../utils/errorHandler.js';
 
 /**
- * POST /api/admin/qr-code
+ * GET /api/admin/qr-code
  * Generates static QR code graphics for physical store deployment.
  */
 export async function handleGenerateQRCode(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const { checkInUrl } = req.body;
-    
-    // Default fallback check-in URL if not passed in payload
     const targetUrl = checkInUrl || process.env.CLIENT_CHECKIN_URL || 'http://localhost:3000/check-in';
 
     const qrAssets = await generateStaticBranchQRCode(targetUrl);
@@ -25,7 +24,8 @@ export async function handleGenerateQRCode(req: AuthenticatedRequest, res: Respo
       data: qrAssets,
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Error generating QR code.' });
+    console.error('QR code generation failed:', error);
+    res.status(500).json({ error: getSafeErrorMessage(error, 'Error generating QR code.') });
   }
 }
 
@@ -43,7 +43,8 @@ export async function handleCreateCounter(req: AuthenticatedRequest, res: Respon
     const counter = await createCounter(Number(counterNumber), counterName);
     res.status(201).json({ message: 'Counter created successfully.', counter });
   } catch (error: any) {
-    res.status(400).json({ error: error.message || 'Failed to create counter.' });
+    console.error('Create counter failed:', error);
+    res.status(400).json({ error: getSafeErrorMessage(error, 'Failed to create counter.') });
   }
 }
 
@@ -55,7 +56,8 @@ export async function handleGetAllCounters(_req: AuthenticatedRequest, res: Resp
     const counters = await getAllCounters();
     res.status(200).json({ counters });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to retrieve counters.' });
+    console.error('Get all counters failed:', error);
+    res.status(500).json({ error: getSafeErrorMessage(error, 'Failed to retrieve counters.') });
   }
 }
 
@@ -80,7 +82,8 @@ export async function handleToggleCounter(req: AuthenticatedRequest, res: Respon
     const counter = await toggleCounterStatus(id, isActive);
     res.status(200).json({ message: 'Counter status updated.', counter });
   } catch (error: any) {
-    res.status(400).json({ error: error.message || 'Failed to update counter status.' });
+    console.error('Toggle counter failed:', error);
+    res.status(400).json({ error: getSafeErrorMessage(error, 'Failed to update counter status.') });
   }
 }
 
@@ -99,7 +102,8 @@ export async function handleForceUnbind(req: AuthenticatedRequest, res: Response
     const counter = await forceUnbindCounterShift(id);
     res.status(200).json({ message: 'Staff shift successfully unbound.', counter });
   } catch (error: any) {
-    res.status(400).json({ error: error.message || 'Failed to force unbind shift.' });
+    console.error('Force unbind failed:', error);
+    res.status(400).json({ error: getSafeErrorMessage(error, 'Failed to force unbind shift.') });
   }
 }
 
@@ -119,7 +123,8 @@ export async function handleCreateUser(req: AuthenticatedRequest, res: Response)
     const user = await createUser({ employeeId, fullName, password, role });
     res.status(201).json({ message: 'User provisioned successfully.', user });
   } catch (error: any) {
-    res.status(400).json({ error: error.message || 'Failed to provision user.' });
+    console.error('Create user failed:', error);
+    res.status(400).json({ error: getSafeErrorMessage(error, 'Failed to provision user.') });
   }
 }
 
@@ -136,7 +141,8 @@ export async function handleGetAllUsers(req: AuthenticatedRequest, res: Response
     const users = await getAllUsers(roleFilter);
     res.status(200).json({ users });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to retrieve users.' });
+    console.error('Get all users failed:', error);
+    res.status(500).json({ error: getSafeErrorMessage(error, 'Failed to retrieve users.') });
   }
 }
 
@@ -153,20 +159,16 @@ export async function handleResetPassword(req: AuthenticatedRequest, res: Respon
       return;
     }
 
-    if (!newPassword ) {
+    if (!newPassword) {
       res.status(400).json({ error: 'New password is required.' });
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      res.status(400).json({ error: 'New password must be at least 6 characters long.' });
       return;
     }
 
     const result = await resetUserPassword(id, newPassword);
     res.status(200).json(result);
   } catch (error: any) {
-    res.status(400).json({ error: error.message || 'Failed to reset password.' });
+    console.error('Reset password failed:', error);
+    res.status(400).json({ error: getSafeErrorMessage(error, 'Failed to reset password.') });
   }
 }
 
@@ -211,7 +213,8 @@ export async function handleCreatePriorityTicket(req: AuthenticatedRequest, res:
       ticket: priorityTicket,
     });
   } catch (error: any) {
-    res.status(400).json({ error: error.message || 'Failed to issue priority ticket.' });
+    console.error('Create priority ticket failed:', error);
+    res.status(400).json({ error: getSafeErrorMessage(error, 'Failed to issue priority ticket.') });
   }
 }
 
@@ -264,7 +267,8 @@ export async function handleOverrideTicketStatus(req: AuthenticatedRequest, res:
       ticket: updatedTicket,
     });
   } catch (error: any) {
-    res.status(400).json({ error: error.message || 'Failed to update ticket.' });
+    console.error('Override ticket failed:', error);
+    res.status(400).json({ error: getSafeErrorMessage(error, 'Failed to update ticket.') });
   }
 }
 
@@ -283,7 +287,8 @@ export async function handleGetAllTickets(req: AuthenticatedRequest, res: Respon
 
     res.status(200).json(result);
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to retrieve tickets.' });
+    console.error('Get all tickets failed:', error);
+    res.status(500).json({ error: getSafeErrorMessage(error, 'Failed to retrieve tickets.') });
   }
 }
 
@@ -294,7 +299,8 @@ export async function handleGetSystemAnalytics(_req: AuthenticatedRequest, res: 
     const analytics = await getSystemAnalytics();
     res.status(200).json({ analytics });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to calculate system analytics.' });
+    console.error('Get system analytics failed:', error);
+    res.status(500).json({ error: getSafeErrorMessage(error, 'Failed to calculate system analytics.') });
   }
 }
 
@@ -304,6 +310,7 @@ export async function handleGetStaffEfficiency(_req: AuthenticatedRequest, res: 
     const metrics = await getStaffEfficiencyMetrics();
     res.status(200).json({ staffEfficiency: metrics });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to retrieve staff efficiency metrics.' });
+    console.error('Get staff efficiency failed:', error);
+    res.status(500).json({ error: getSafeErrorMessage(error, 'Failed to retrieve staff efficiency metrics.') });
   }
 }

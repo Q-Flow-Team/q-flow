@@ -13,16 +13,11 @@ async function logNotification(
   message: string,
   phoneNumber: string
 ) {
-
-  console.log(`Logging notification for ticket ${ticketId}: ${message}`);
   let delivered = false;
 
   if (channel === 'SMS') {
-    console.log(`Sending SMS to ${phoneNumber}: ${message}`);
     delivered = await sendSMSNotification({ recipient: phoneNumber, message });
-    console.log(`SMS delivery status: ${delivered}`);
   } else if (channel === 'WHATSAPP') {
-    console.log(`Sending WhatsApp message to ${phoneNumber}: ${message}`);
     // delivered = await sendWhatsAppNotification({ recipient: phoneNumber, message });
   }
 
@@ -38,7 +33,7 @@ async function logNotification(
  */
 
 //----------------Join Queue (Customer check-in)--------------
-function sanitizeCustomerName(name: string): string {
+export function sanitizeCustomerName(name: string): string {
   const trimmed = name.trim().replace(/\s+/g, ' ');
 
   if (trimmed.length < 2 || trimmed.length > 100) {
@@ -53,7 +48,7 @@ function sanitizeCustomerName(name: string): string {
   return trimmed;
 }
 
-function sanitizePhoneNumber(phone: string): string {
+export function sanitizePhoneNumber(phone: string): string {
   const digitsOnly = phone.replace(/[^\d]/g, '');
 
   // Normalize to 233XXXXXXXXX (Ghana country code, no leading +/0)
@@ -115,7 +110,13 @@ export async function createTicket(data: {
   });
 
   // Log initial join notification event
-  await logNotification(ticket.id, ticket.preferredChannel, 'INITIAL_JOIN', `Your ticket ${ticketNumber} is confirmed. Initial position: ${position}.`, ticket.phoneNumber);
+  await logNotification(
+    ticket.id,
+    ticket.preferredChannel,
+    'INITIAL_JOIN',
+    `Your ticket ${ticketNumber} is confirmed. Initial position: ${position}.`,
+    ticket.phoneNumber
+  );
 
   return ticket;
 }
@@ -152,35 +153,39 @@ export async function getTicketStatus(ticketId: string) {
 
 //-------------Customer Self-Cancellation--------------
 export async function cancelCustomerTicket(ticketId: string) {
-  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+  const cancelledTicket = await prisma.$transaction(async (tx) => {
+    const ticket = await tx.ticket.findUnique({ where: { id: ticketId } });
 
-  if (!ticket) {
-    throw new Error('Ticket not found.');
-  }
+    if (!ticket) {
+      throw new Error('Ticket not found.');
+    }
 
-  if (ticket.status !== TicketStatus.WAITING && ticket.status !== TicketStatus.CALLED) {
-    throw new Error('Only WAITING or CALLED tickets can be cancelled.');
-  }
+    if (ticket.status !== TicketStatus.WAITING && ticket.status !== TicketStatus.CALLED) {
+      throw new Error('Only WAITING or CALLED tickets can be cancelled.');
+    }
 
-  const cancelledTicket = await prisma.ticket.update({
-    where: { id: ticketId },
-    data: {
-      status: TicketStatus.CANCELLED,
-      cancelledAt: new Date(),
-      currentPosition: 0,
-    },
-  });
-
-  // Shift waiting positions for everyone behind this ticket
-  if (ticket.status === TicketStatus.WAITING && ticket.currentPosition > 0) {
-    await prisma.ticket.updateMany({
-      where: {
-        status: TicketStatus.WAITING,
-        currentPosition: { gt: ticket.currentPosition },
+    const updated = await tx.ticket.update({
+      where: { id: ticketId },
+      data: {
+        status: TicketStatus.CANCELLED,
+        cancelledAt: new Date(),
+        currentPosition: 0,
       },
-      data: { currentPosition: { decrement: 1 } },
     });
-  }
+
+    // Shift waiting positions for everyone behind this ticket
+    if (ticket.status === TicketStatus.WAITING && ticket.currentPosition > 0) {
+      await tx.ticket.updateMany({
+        where: {
+          status: TicketStatus.WAITING,
+          currentPosition: { gt: ticket.currentPosition },
+        },
+        data: { currentPosition: { decrement: 1 } },
+      });
+    }
+
+    return updated;
+  });
 
   // 📡 Real-time broadcast
   broadcastQueueEvent(SOCKET_EVENTS.QUEUE_UPDATED, {
@@ -234,9 +239,9 @@ export async function callNextTicket(staffId: string) {
 
   // Log counter call notification
   await logNotification(
-    updatedTicket.id, 
-    updatedTicket.preferredChannel, 
-    'COUNTER_CALL', 
+    updatedTicket.id,
+    updatedTicket.preferredChannel,
+    'COUNTER_CALL',
     `It's your turn! Please proceed to ${counter.counterName}.`,
     updatedTicket.phoneNumber
   );
@@ -266,7 +271,7 @@ export async function skipTicket(ticketId: string, staffId: string) {
     await logNotification(
       ticketId,
       ticket.preferredChannel,
-      'INITIAL_JOIN',
+      'AUTO_CANCELLED',
       `Your ticket ${ticket.ticketNumber} has been automatically cancelled after 3 skipped calls.`,
       ticket.phoneNumber
     );
@@ -276,7 +281,7 @@ export async function skipTicket(ticketId: string, staffId: string) {
 
   // Otherwise, re-queue ticket at the back of the waiting line
   const waitingCount = await prisma.ticket.count({ where: { status: 'WAITING' } });
-  
+
   const requeuedTicket = await prisma.ticket.update({
     where: { id: ticketId },
     data: {
