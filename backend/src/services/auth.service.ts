@@ -2,6 +2,7 @@ import { prisma } from '../config/db.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '../config/jwt.js';
+import { Prisma } from '@prisma/client';
 
 /**
  * Staff / Admin Login
@@ -54,7 +55,7 @@ export async function bindShift(userId: string, counterId: string) {
     throw new Error('Counter is currently bound to another staff member.');
   }
 
-  const updatedCounter = await prisma.$transaction(async (tx) => {
+  const updatedCounter = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.counter.updateMany({
       where: { currentStaffId: userId },
       data: { currentStaffId: null },
