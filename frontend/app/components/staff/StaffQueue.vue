@@ -28,6 +28,9 @@ const rows = computed(() => {
 const handleCallNext = async () => {
   calling.value = true
   try {
+    if (activeTicket.value && ['CALLED', 'IN_SERVICE'].includes(activeTicket.value.status)) {
+      await completeService(activeTicket.value.id)
+    }
     const ticket = await callNext()
     if (ticket) showToast(`Calling ${ticket.ticketNumber} — ${ticket.customerName}`)
   } catch (err: any) {
