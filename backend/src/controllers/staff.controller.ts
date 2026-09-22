@@ -163,6 +163,24 @@ export async function handleSkipTicket(req: AuthenticatedRequest, res: Response)
   }
 }
 
+// POST /api/staff/tickets/:id/complete
+export async function handleCompleteService(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const { id } = req.params;
+
+    if (typeof id !== 'string') {
+      res.status(400).json({ error: 'Invalid ticket ID.' });
+      return;
+    }
+
+    const ticket = await markTicketServed(id);
+    res.status(200).json({ message: 'Service completed.', ticket });
+  } catch (error: any) {
+    console.error('Complete service failed:', error);
+    res.status(400).json({ error: getSafeErrorMessage(error, 'Failed to complete service.') });
+  }
+}
+
 // GET /api/staff/shift-overview  (kept — not currently called by the dashboard)
 export async function handleGetShiftOverview(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {

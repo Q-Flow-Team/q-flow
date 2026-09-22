@@ -7,6 +7,8 @@ import {
   handleUpdateTicketStatus,
   handleRecallTicket,
   handleSkipTicket,
+  handleStartService,
+  handleCompleteService,
 } from '../controllers/staff.controller.js';
 
 import { requireCounterStaff } from '../middlewares/staff.middleware.js';
@@ -307,10 +309,9 @@ router.post('/tickets/:id/recall', handleRecallTicket);
 
 /**
  * @openapi
- * /api/staff/tickets/{id}/skip:
+ * /api/v1/counters/tickets/{id}/skip:
  *   post:
- *     summary: Skip a ticket
- *     description: Skips the current ticket back into the queue. After 3 skipped calls the ticket is automatically cancelled.
+ *     summary: Skip a ticket (e.g., customer no-show)
  *     tags: [Counter Staff]
  *     security:
  *       - bearerAuth: []
@@ -323,26 +324,105 @@ router.post('/tickets/:id/recall', handleRecallTicket);
  *         description: Unique ticket ID
  *     responses:
  *       200:
- *         description: Ticket skipped
+ *         description: Ticket skipped successfully
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 message:
+ *                 id:
  *                   type: string
- *                   example: Ticket skipped.
- *                 ticket:
- *                   type: object
- *       400:
- *         description: Invalid ticket ID or transition not allowed
+ *                 ticketNumber:
+ *                   type: string
+ *                   example: A-103
+ *                 status:
+ *                   type: string
+ *                   example: SKIPPED
  *       401:
  *         description: Unauthorized
- *       403:
- *         description: Forbidden - requires counter staff role
  *       404:
  *         description: Ticket not found
  */
-router.post('/tickets/:id/skip', handleSkipTicket);
+router.post('/staff/tickets/:id/skip', handleSkipTicket);
+
+/**
+ * @openapi
+ * /api/v1/staff/tickets/{id}/start:
+ *   post:
+ *     summary: Mark ticket service as started
+ *     tags: [Counter Staff]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Unique ticket ID
+ *     responses:
+ *       200:
+ *         description: Ticket service marked as in progress
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 ticketNumber:
+ *                   type: string
+ *                   example: A-103
+ *                 status:
+ *                   type: string
+ *                   example: IN_SERVICE
+ *       400:
+ *         description: Ticket cannot be started from current status
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Ticket not found
+ */
+router.post('/staff/tickets/:id/start', handleStartService);
+
+/**
+ * @openapi
+ * /api/v1/staff/tickets/{id}/complete:
+ *   post:
+ *     summary: Mark ticket service as completed
+ *     tags: [Counter Staff]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Unique ticket ID
+ *     responses:
+ *       200:
+ *         description: Ticket service completed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 ticketNumber:
+ *                   type: string
+ *                   example: A-103
+ *                 status:
+ *                   type: string
+ *                   example: COMPLETED
+ *       400:
+ *         description: Ticket cannot be completed from current status
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Ticket not found
+ */
+router.post('staff/tickets/:id/complete', handleCompleteService);
 
 export default router;
