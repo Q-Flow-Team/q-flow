@@ -1,0 +1,2046 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Q-Flow API Documentation",
+    "version": "1.0.0",
+    "description": "REST API documentation for Q-Flow Queue Management System"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000/api/v1",
+      "description": "Development Server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/tickets/check-in": {
+      "post": {
+        "summary": "Issue a new queue ticket",
+        "tags": [
+          "Tickets"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "customerName",
+                  "phoneNumber",
+                  "serviceTypeId"
+                ],
+                "properties": {
+                  "customerName": {
+                    "type": "string",
+                    "example": "John Doe"
+                  },
+                  "phoneNumber": {
+                    "type": "string",
+                    "example": "233240000000"
+                  },
+                  "serviceTypeId": {
+                    "type": "string",
+                    "example": "srv_12345"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Ticket created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ticketId": {
+                      "type": "string"
+                    },
+                    "ticketNumber": {
+                      "type": "string",
+                      "example": "A-102"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "WAITING"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required check-in fields"
+          }
+        }
+      }
+    },
+    "/api/v1/tickets/{id}/status": {
+      "get": {
+        "summary": "Get live status of a queue ticket",
+        "tags": [
+          "Tickets"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ticket ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ticket status details retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "ticketNumber": {
+                      "type": "string",
+                      "example": "A-102"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "WAITING"
+                    },
+                    "positionInQueue": {
+                      "type": "integer",
+                      "example": 3
+                    },
+                    "estimatedWaitMinutes": {
+                      "type": "integer",
+                      "example": 15
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ticket not found"
+          }
+        }
+      }
+    },
+    "/api/v1/tickets/{id}/cancel": {
+      "post": {
+        "summary": "Cancel an active queue ticket",
+        "tags": [
+          "Tickets"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ticket ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ticket cancelled successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Ticket cancelled successfully"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "CANCELLED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Ticket cannot be cancelled from current state"
+          },
+          "404": {
+            "description": "Ticket not found"
+          }
+        }
+      }
+    },
+    "/api/staff/counters": {
+      "get": {
+        "summary": "List all counters and their assigned staff",
+        "description": "Returns every counter desk, whether it's currently staffed, and who's assigned — used to populate the active-desk selector.",
+        "tags": [
+          "Counter Staff"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of counters retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "counters": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "employeeId": {
+                            "type": "string",
+                            "example": "EMP-2201"
+                          },
+                          "fullName": {
+                            "type": "string",
+                            "example": "Ama Boateng"
+                          },
+                          "role": {
+                            "type": "string",
+                            "example": "COUNTER_STAFF"
+                          },
+                          "activeCounter": {
+                            "type": "string",
+                            "nullable": true,
+                            "example": "Teller 1"
+                          },
+                          "counterNumber": {
+                            "type": "integer",
+                            "example": 1
+                          },
+                          "isOnline": {
+                            "type": "boolean",
+                            "example": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - missing or invalid JWT token"
+          },
+          "403": {
+            "description": "Forbidden - requires counter staff role"
+          }
+        }
+      }
+    },
+    "/api/staff/counters/{employeeId}/current-ticket": {
+      "get": {
+        "summary": "Get the ticket currently being served at a counter",
+        "tags": [
+          "Counter Staff"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "employeeId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Employee ID of the staff member assigned to the counter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current ticket for the counter, or null if the desk is idle",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ticket": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "ticketNumber": {
+                          "type": "string",
+                          "example": "A-103"
+                        },
+                        "customerName": {
+                          "type": "string",
+                          "example": "Kojo Mensah"
+                        },
+                        "phoneNumber": {
+                          "type": "string",
+                          "example": "+233201234567"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "WAITING",
+                            "CALLED",
+                            "IN_SERVICE",
+                            "SERVED",
+                            "SKIPPED",
+                            "CANCELLED",
+                            "AUTO_CANCELLED"
+                          ],
+                          "example": "IN_SERVICE"
+                        },
+                        "preferredChannel": {
+                          "type": "string",
+                          "enum": [
+                            "WHATSAPP",
+                            "SMS",
+                            "NONE"
+                          ],
+                          "example": "WHATSAPP"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - requires counter staff role"
+          },
+          "404": {
+            "description": "Counter not found for the given employee"
+          }
+        }
+      }
+    },
+    "/api/staff/counters/{employeeId}/queue": {
+      "get": {
+        "summary": "Get the list of tickets waiting to be called to this counter",
+        "tags": [
+          "Counter Staff"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "employeeId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Employee ID of the staff member assigned to the counter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Waiting queue retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tickets": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "ticketNumber": {
+                            "type": "string",
+                            "example": "A-104"
+                          },
+                          "customerName": {
+                            "type": "string",
+                            "example": "Efua Owusu"
+                          },
+                          "status": {
+                            "type": "string",
+                            "example": "WAITING"
+                          },
+                          "joinedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - requires counter staff role"
+          },
+          "404": {
+            "description": "Counter not found for the given employee"
+          }
+        }
+      }
+    },
+    "/api/staff/counters/{employeeId}/call-next": {
+      "post": {
+        "summary": "Call the next waiting ticket to this counter",
+        "tags": [
+          "Counter Staff"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "employeeId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Employee ID of the staff member assigned to the counter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Next ticket successfully called to the counter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ticket": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "ticketNumber": {
+                          "type": "string",
+                          "example": "A-105"
+                        },
+                        "status": {
+                          "type": "string",
+                          "example": "CALLED"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - requires counter staff role"
+          },
+          "404": {
+            "description": "No waiting tickets in queue, or counter not found"
+          }
+        }
+      }
+    },
+    "/api/staff/tickets/{id}/status": {
+      "patch": {
+        "summary": "Update a ticket's status",
+        "description": "Generic status transition endpoint — e.g. marking a ticket SERVED, CANCELLED, or SKIPPED.",
+        "tags": [
+          "Counter Staff"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ticket ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "status"
+                ],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "WAITING",
+                      "CALLED",
+                      "IN_SERVICE",
+                      "SERVED",
+                      "SKIPPED",
+                      "CANCELLED",
+                      "AUTO_CANCELLED"
+                    ],
+                    "example": "SERVED"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ticket status updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "ticketNumber": {
+                      "type": "string",
+                      "example": "A-103"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "SERVED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid status value or illegal transition from current status"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - requires counter staff role"
+          },
+          "404": {
+            "description": "Ticket not found"
+          }
+        }
+      }
+    },
+    "/api/staff/tickets/{id}/recall": {
+      "post": {
+        "summary": "Re-send the counter-call notification for a ticket",
+        "description": "Re-notifies the customer (via their preferred channel) that they're being called, without changing ticket status.",
+        "tags": [
+          "Counter Staff"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ticket ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notification re-sent successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Customer re-notified successfully."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - requires counter staff role"
+          },
+          "404": {
+            "description": "Ticket not found"
+          }
+        }
+      }
+    },
+    "/api/v1/counters/tickets/{id}/skip": {
+      "post": {
+        "summary": "Skip a ticket (e.g., customer no-show)",
+        "tags": [
+          "Counter Staff"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ticket ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ticket skipped successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "ticketNumber": {
+                      "type": "string",
+                      "example": "A-103"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "SKIPPED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Ticket not found"
+          }
+        }
+      }
+    },
+    "/api/v1/staff/tickets/{id}/start": {
+      "post": {
+        "summary": "Mark ticket service as started",
+        "tags": [
+          "Counter Staff"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ticket ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ticket service marked as in progress",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "ticketNumber": {
+                      "type": "string",
+                      "example": "A-103"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "IN_SERVICE"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Ticket cannot be started from current status"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Ticket not found"
+          }
+        }
+      }
+    },
+    "/api/v1/staff/tickets/{id}/complete": {
+      "post": {
+        "summary": "Mark ticket service as completed",
+        "tags": [
+          "Counter Staff"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ticket ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ticket service completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "ticketNumber": {
+                      "type": "string",
+                      "example": "A-103"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "COMPLETED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Ticket cannot be completed from current status"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Ticket not found"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "summary": "Staff member login",
+        "tags": [
+          "Authentication"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "employeeId",
+                  "password"
+                ],
+                "properties": {
+                  "employeeId": {
+                    "type": "string",
+                    "example": "ADM-001"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "example": "YourSecurePassword123!"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful, returns JWT token and user info",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "string",
+                      "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "employeeId": {
+                          "type": "string",
+                          "example": "ADM-001"
+                        },
+                        "fullName": {
+                          "type": "string",
+                          "example": "System Administrator"
+                        },
+                        "role": {
+                          "type": "string",
+                          "example": "ADMIN"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing employeeId or password"
+          },
+          "401": {
+            "description": "Invalid credentials"
+          },
+          "429": {
+            "description": "Too many login attempts, rate limited"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/bind-shift": {
+      "post": {
+        "summary": "Bind staff member to a counter for the active shift",
+        "tags": [
+          "Authentication"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "counterId"
+                ],
+                "properties": {
+                  "counterId": {
+                    "type": "string",
+                    "example": "cnt_12345"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Shift bound to counter successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Shift bound successfully"
+                    },
+                    "counterId": {
+                      "type": "string"
+                    },
+                    "counterNumber": {
+                      "type": "integer",
+                      "example": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Counter is already occupied or invalid counterId"
+          },
+          "401": {
+            "description": "Unauthorized - missing or invalid JWT token"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/unbind-shift": {
+      "post": {
+        "summary": "Unbind staff member from active counter shift",
+        "tags": [
+          "Authentication"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Shift unbound successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Shift unbound successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No active shift binding found"
+          },
+          "401": {
+            "description": "Unauthorized - missing or invalid JWT token"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/qr-code": {
+      "get": {
+        "summary": "Generate the branch check-in QR code",
+        "description": "Returns both a PNG data URL (for previews/downloads) and an SVG string (for print/signage) pointing at the customer self-service check-in URL.",
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "QR code assets generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "targetUrl": {
+                      "type": "string",
+                      "example": "https://qflow.example.com/check-in"
+                    },
+                    "pngDataUrl": {
+                      "type": "string",
+                      "example": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
+                    },
+                    "svgString": {
+                      "type": "string",
+                      "example": "<svg xmlns=\"http://www.w3.org/2000/svg\" ...>...</svg>"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Admin access required"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/counters": {
+      "post": {
+        "summary": "Create a new service counter",
+        "tags": [
+          "Admin - Counter Management"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "counterNumber",
+                  "counterName"
+                ],
+                "properties": {
+                  "counterNumber": {
+                    "type": "integer",
+                    "example": 4
+                  },
+                  "counterName": {
+                    "type": "string",
+                    "example": "Teller 4 - VIP"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Counter created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "counterNumber": {
+                      "type": "integer",
+                      "example": 4
+                    },
+                    "counterName": {
+                      "type": "string",
+                      "example": "Teller 4 - VIP"
+                    },
+                    "isActive": {
+                      "type": "boolean",
+                      "example": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Counter number already exists"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Admin access required"
+          }
+        }
+      },
+      "get": {
+        "summary": "Retrieve all registered counters",
+        "tags": [
+          "Admin - Counter Management"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of all counters, ordered by counter number",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "counterNumber": {
+                        "type": "integer"
+                      },
+                      "counterName": {
+                        "type": "string"
+                      },
+                      "isActive": {
+                        "type": "boolean"
+                      },
+                      "currentStaff": {
+                        "type": "object",
+                        "nullable": true,
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "employeeId": {
+                            "type": "string",
+                            "example": "STF-010"
+                          },
+                          "fullName": {
+                            "type": "string",
+                            "example": "Jane Doe"
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "ADMIN",
+                              "COUNTER_STAFF"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/counters/{id}/toggle": {
+      "patch": {
+        "summary": "Enable or disable a service counter",
+        "description": "Deactivating a counter automatically force-unbinds any staff member currently assigned to it.",
+        "tags": [
+          "Admin - Counter Management"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique counter ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "isActive"
+                ],
+                "properties": {
+                  "isActive": {
+                    "type": "boolean",
+                    "example": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Counter status toggled successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "counterNumber": {
+                      "type": "integer"
+                    },
+                    "counterName": {
+                      "type": "string"
+                    },
+                    "isActive": {
+                      "type": "boolean"
+                    },
+                    "currentStaffId": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Admin access required"
+          },
+          "404": {
+            "description": "Counter not found"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/counters/{id}/force-unbind": {
+      "post": {
+        "summary": "Force unbind staff assigned to a counter",
+        "description": "Unconditionally clears the counter's currently bound staff member, regardless of whether one is assigned.",
+        "tags": [
+          "Admin - Counter Management"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique counter ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Counter's staff binding cleared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "counterNumber": {
+                      "type": "integer"
+                    },
+                    "currentStaffId": {
+                      "type": "string",
+                      "nullable": true,
+                      "example": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Admin access required"
+          },
+          "404": {
+            "description": "Counter not found"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users": {
+      "post": {
+        "summary": "Provision a new staff or admin user",
+        "tags": [
+          "Admin - User Provisioning"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "employeeId",
+                  "fullName",
+                  "password"
+                ],
+                "properties": {
+                  "employeeId": {
+                    "type": "string",
+                    "description": "3-20 characters; letters, numbers, and hyphens only.",
+                    "example": "STF-010"
+                  },
+                  "fullName": {
+                    "type": "string",
+                    "example": "Jane Doe"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "description": "Min 8 characters, must include uppercase, lowercase, and a digit.",
+                    "example": "SecurePass123"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "ADMIN",
+                      "COUNTER_STAFF"
+                    ],
+                    "description": "Defaults to COUNTER_STAFF if omitted.",
+                    "example": "COUNTER_STAFF"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "employeeId": {
+                      "type": "string",
+                      "example": "STF-010"
+                    },
+                    "fullName": {
+                      "type": "string",
+                      "example": "Jane Doe"
+                    },
+                    "role": {
+                      "type": "string",
+                      "example": "COUNTER_STAFF"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Employee ID already registered, or employeeId/fullName/password failed validation"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Admin access required"
+          }
+        }
+      },
+      "get": {
+        "summary": "List all system users",
+        "tags": [
+          "Admin - User Provisioning"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "role",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMIN",
+                "COUNTER_STAFF"
+              ]
+            },
+            "description": "Optional filter by role"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of system users, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "employeeId": {
+                        "type": "string"
+                      },
+                      "fullName": {
+                        "type": "string"
+                      },
+                      "role": {
+                        "type": "string",
+                        "enum": [
+                          "ADMIN",
+                          "COUNTER_STAFF"
+                        ]
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "activeCounter": {
+                        "type": "object",
+                        "nullable": true,
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "counterNumber": {
+                            "type": "integer"
+                          },
+                          "counterName": {
+                            "type": "string"
+                          },
+                          "isActive": {
+                            "type": "boolean"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users/{id}/reset-password": {
+      "post": {
+        "summary": "Reset password for a specific user",
+        "tags": [
+          "Admin - User Provisioning"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique user ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "newPassword"
+                ],
+                "properties": {
+                  "newPassword": {
+                    "type": "string",
+                    "format": "password",
+                    "description": "Min 8 characters, must include uppercase, lowercase, and a digit.",
+                    "example": "NewStrongPassword123"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Password successfully reset for employee ID: STF-010"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "New password failed strength validation"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Admin access required"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/tickets": {
+      "get": {
+        "summary": "Retrieve queue tickets with filtering, search, and pagination",
+        "tags": [
+          "Admin - Queue Management"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "WAITING",
+                "CALLED",
+                "IN_SERVICE",
+                "SERVED",
+                "SKIPPED",
+                "CANCELLED",
+                "AUTO_CANCELLED"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Case-insensitive match against ticket number, customer name, or phone number"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of tickets, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tickets": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "ticketNumber": {
+                            "type": "string"
+                          },
+                          "customerName": {
+                            "type": "string"
+                          },
+                          "phoneNumber": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "WAITING",
+                              "CALLED",
+                              "IN_SERVICE",
+                              "SERVED",
+                              "SKIPPED",
+                              "CANCELLED",
+                              "AUTO_CANCELLED"
+                            ]
+                          },
+                          "joinedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "counter": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "counterNumber": {
+                                "type": "integer"
+                              },
+                              "counterName": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "servicedByStaff": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "employeeId": {
+                                "type": "string"
+                              },
+                              "fullName": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "totalCount": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "totalPages": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Admin access required"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/tickets/priority": {
+      "post": {
+        "summary": "Insert a high-priority (VIP) ticket at the front of the queue",
+        "description": "Shifts all currently WAITING tickets back one position and inserts the new ticket at position 1.",
+        "tags": [
+          "Admin - Queue Management"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "customerName",
+                  "phoneNumber"
+                ],
+                "properties": {
+                  "customerName": {
+                    "type": "string",
+                    "example": "Elderly Customer"
+                  },
+                  "phoneNumber": {
+                    "type": "string",
+                    "example": "233240000000"
+                  },
+                  "preferredChannel": {
+                    "type": "string",
+                    "enum": [
+                      "WHATSAPP",
+                      "SMS",
+                      "NONE"
+                    ],
+                    "description": "Defaults to WHATSAPP if omitted.",
+                    "example": "WHATSAPP"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Priority ticket created and placed at head of queue",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "ticketNumber": {
+                      "type": "string",
+                      "example": "VIP-001"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "WAITING"
+                    },
+                    "currentPosition": {
+                      "type": "integer",
+                      "example": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "customerName or phoneNumber failed validation"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Admin access required"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/tickets/{id}/override": {
+      "patch": {
+        "summary": "Manually override a ticket's status or details",
+        "description": "All fields are optional and applied independently — e.g. you can update just customerName without touching status. Setting status to a terminal value (SERVED, CANCELLED, AUTO_CANCELLED, SKIPPED) stamps the corresponding timestamp automatically.",
+        "tags": [
+          "Admin - Queue Management"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ticket ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "WAITING",
+                      "CALLED",
+                      "IN_SERVICE",
+                      "SERVED",
+                      "SKIPPED",
+                      "CANCELLED",
+                      "AUTO_CANCELLED"
+                    ],
+                    "example": "CANCELLED"
+                  },
+                  "customerName": {
+                    "type": "string"
+                  },
+                  "phoneNumber": {
+                    "type": "string"
+                  },
+                  "preferredChannel": {
+                    "type": "string",
+                    "enum": [
+                      "WHATSAPP",
+                      "SMS",
+                      "NONE"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "description": "Included in the real-time broadcast event; not persisted on the ticket record.",
+                    "example": "Customer requested cancellation"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ticket updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "ticketNumber": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Admin access required"
+          },
+          "404": {
+            "description": "Ticket not found"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/analytics/overview": {
+      "get": {
+        "summary": "Get today's system-wide queue metrics",
+        "tags": [
+          "Admin - Analytics"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Today's operational overview, wait/service times, and status breakdown",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "date": {
+                      "type": "string",
+                      "format": "date",
+                      "example": "2026-09-21"
+                    },
+                    "totalTicketsToday": {
+                      "type": "integer",
+                      "example": 142
+                    },
+                    "avgWaitTimeMinutes": {
+                      "type": "number",
+                      "nullable": true,
+                      "description": "Average time from joining to being serviced, in minutes. Null if no tickets were served today.",
+                      "example": 12.4
+                    },
+                    "avgServiceTimeMinutes": {
+                      "type": "number",
+                      "nullable": true,
+                      "description": "Average time spent in service, in minutes. Null if no tickets were served today.",
+                      "example": 5.1
+                    },
+                    "statusBreakdown": {
+                      "type": "object",
+                      "description": "Count of today's tickets per status",
+                      "properties": {
+                        "WAITING": {
+                          "type": "integer"
+                        },
+                        "CALLED": {
+                          "type": "integer"
+                        },
+                        "IN_SERVICE": {
+                          "type": "integer"
+                        },
+                        "SERVED": {
+                          "type": "integer"
+                        },
+                        "SKIPPED": {
+                          "type": "integer"
+                        },
+                        "CANCELLED": {
+                          "type": "integer"
+                        },
+                        "AUTO_CANCELLED": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Admin access required"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/analytics/staff-efficiency": {
+      "get": {
+        "summary": "Get today's performance metrics per counter staff member",
+        "tags": [
+          "Admin - Analytics"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Per-staff ticket counts and average handling time for today",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "staffId": {
+                        "type": "string"
+                      },
+                      "employeeId": {
+                        "type": "string"
+                      },
+                      "fullName": {
+                        "type": "string"
+                      },
+                      "activeCounter": {
+                        "type": "string",
+                        "example": "Register 3",
+                        "description": "\"Unbound\" if the staff member isn't currently assigned to a counter."
+                      },
+                      "totalTicketsServedToday": {
+                        "type": "integer"
+                      },
+                      "avgHandlingTimeMinutes": {
+                        "type": "number",
+                        "nullable": true,
+                        "description": "Null if the staff member hasn't completed any tickets today."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Admin access required"
+          }
+        }
+      }
+    }
+  },
+  "tags": []
+}
