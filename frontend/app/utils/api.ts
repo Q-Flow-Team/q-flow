@@ -1,5 +1,3 @@
-import { handleMockRequest } from '~/utils/mockApi'
-
 export interface ApiError {
   status: number
   message: string
@@ -9,24 +7,12 @@ const TOKEN_KEY = 'qflow_token'
 const USER_KEY = 'qflow_user'
 const FALLBACK_BASE = '/api/v1'
 
-export function useMockApi(): boolean {
-  try {
-    const config = useRuntimeConfig()
-    const raw = config.public.useMock
-    return raw !== false && String(raw).toLowerCase() !== 'false'
-  } catch {
-    return true
-  }
-}
-
 export function resolveApiBase(): string {
   try {
     const config = useRuntimeConfig()
-    const base = (config.public.apiBase as string) || FALLBACK_BASE
-    if (import.meta.server) return base
-    return '/api/v1'
+    return ((config.public.apiBase as string) || FALLBACK_BASE).replace(/\/$/, '')
   } catch {
-    return import.meta.server ? FALLBACK_BASE : '/api/v1'
+    return FALLBACK_BASE
   }
 }
 
@@ -65,17 +51,66 @@ export function clearStoredAuth() {
   localStorage.removeItem(USER_KEY)
 }
 
+/**
+ * Coerce whatever the API threw into a meaningful, human-readable string.
+ * Guards against booleans/objects leaking into the UI (e.g. a raw `true`).
+ */
+function toMessage(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed ? trimmed : null
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const msg = toMessage(item)
+      if (msg) return msg
+    }
+    return null
+  }
+  if (value && typeof value === 'object') {
+    const obj = value as Record<string, unknown>
+    return toMessage(obj.error) || toMessage(obj.message) || toMessage(obj.detail)
+  }
+  return null
+}
+
 function normalizeError(err: any): ApiError {
   const status: number = err?.response?.status ?? err?.statusCode ?? err?.status ?? 0
   const data = err?.data ?? err?.response?._data
-  const message: string =
-    (typeof data === 'string' && data) ||
-    data?.error ||
-    data?.message ||
-    err?.statusMessage ||
-    err?.message ||
+  const message =
+    toMessage(data) ||
+    toMessage(err?.data) ||
+    toMessage(err?.response?._data) ||
+    toMessage(err?.statusMessage) ||
+    toMessage(err?.message) ||
     'Something went wrong. Please try again.'
   return { status, message }
+}
+
+function isSessionError(status: number, message: string): boolean {
+  if (status === 401) return true
+  if (status === 403 && /token|expired|authorization/i.test(message)) return true
+  return false
+}
+
+function clearSessionAuth() {
+  if (import.meta.server) return
+  clearStoredAuth()
+  try {
+    const token = useState('qflow-auth-token')
+    const user = useState('qflow-auth-user')
+    if (token && typeof token.value === 'string') token.value = null
+    if (user && user.value) user.value = null
+  } catch {
+    // Nuxt state unavailable — storage was already cleared.
+  }
+  if (
+    typeof window !== 'undefined' &&
+    window.location.pathname !== '/' &&
+    !window.location.pathname.startsWith('/ticket')
+  ) {
+    window.location.assign('/')
+  }
 }
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
@@ -84,14 +119,6 @@ export async function apiRequest<T = any>(
   path: string,
   options: { method?: HttpMethod; body?: any; query?: Record<string, any> } = {},
 ): Promise<T> {
-  if (useMockApi()) {
-    try {
-      return await handleMockRequest<T>(path, options.method || 'GET', options.body, options.query, getToken())
-    } catch (err) {
-      throw normalizeError(err)
-    }
-  }
-
   const base = resolveApiBase().replace(/\/$/, '')
   const token = getToken()
   const headers: Record<string, string> = { Accept: 'application/json' }
@@ -114,7 +141,11 @@ export async function apiRequest<T = any>(
       body: options.body,
     })
   } catch (err) {
-    throw normalizeError(err)
+    const normalized = normalizeError(err)
+    if (token && isSessionError(normalized.status, normalized.message)) {
+      clearSessionAuth()
+    }
+    throw normalized
   }
 }
 

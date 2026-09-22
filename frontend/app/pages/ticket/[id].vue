@@ -22,7 +22,6 @@ const ticket = ref<StatusTicket | null>(null)
 const initialPosition = ref<number | null>(null)
 const loading = ref(true)
 const errorMsg = ref('')
-const confirmCancel = ref(false)
 const cancelling = ref(false)
 
 const loadStoredTicket = () => {
@@ -118,9 +117,11 @@ const handleCancel = async () => {
   cancelling.value = true
   try {
     await apiPost(`/tickets/${ticketId.value}/cancel`)
-    if (import.meta.client) localStorage.removeItem(`qflow_ticket_${ticketId.value}`)
-    await fetchStatus(true)
-    confirmCancel.value = false
+    if (import.meta.client) {
+      localStorage.removeItem(`qflow_ticket_${ticketId.value}`)
+      localStorage.removeItem('qflow_current_ticket')
+    }
+    navigateTo('/ticket/goodbye')
   } catch (err: any) {
     errorMsg.value = err?.message || 'We could not cancel your ticket.'
   } finally {
@@ -129,12 +130,16 @@ const handleCancel = async () => {
 }
 
 const leaveQueue = () => {
-  navigateTo('/')
+  if (import.meta.client) {
+    localStorage.removeItem(`qflow_ticket_${ticketId.value}`)
+    localStorage.removeItem('qflow_current_ticket')
+  }
+  navigateTo('/ticket/goodbye')
 }
 
 const startOver = () => {
   if (import.meta.client) localStorage.removeItem(`qflow_ticket_${ticketId.value}`)
-  navigateTo('/')
+  navigateTo('/ticket-registration')
 }
 </script>
 
@@ -267,38 +272,23 @@ const startOver = () => {
         <div v-if="errorMsg" class="text-xs text-danger">{{ errorMsg }}</div>
 
         <div v-if="canCancel" class="space-y-3">
-          <button
-            class="w-full inline-flex items-center justify-center gap-2 font-semibold rounded-none transition-all duration-150 px-3 py-1.5 text-xs bg-transparent text-foreground hover:bg-muted active:bg-border border border-border"
-            @click="leaveQueue"
-          >Leave Queue</button>
-
-          <div v-if="confirmCancel" class="bg-primary-lighter border border-primary-border rounded-xl p-4 space-y-3">
-            <p class="text-sm font-bold text-foreground">Cancel your ticket?</p>
-            <p class="text-xs text-muted-foreground">This removes your ticket from the queue and everyone else moves up.</p>
-            <div class="flex gap-2">
-              <button
-                :disabled="cancelling"
-                class="flex-1 inline-flex items-center justify-center gap-2 font-semibold rounded-none transition-all duration-150 px-3 py-1.5 text-xs bg-danger text-white hover:bg-danger-hover disabled:opacity-50"
-                @click="handleCancel"
-              >{{ cancelling ? 'Cancelling…' : 'Yes, Cancel' }}</button>
-              <button
-                class="flex-1 inline-flex items-center justify-center gap-2 font-semibold rounded-none transition-all duration-150 px-3 py-1.5 text-xs bg-transparent text-foreground hover:bg-muted border border-border"
-                @click="confirmCancel = false"
-              >Keep Waiting</button>
-            </div>
-          </div>
-          <button
-            v-else
-            class="w-full inline-flex items-center justify-center gap-2 font-semibold rounded-none transition-all duration-150 px-3 py-1.5 text-xs bg-danger/10 text-danger hover:bg-danger/20"
-            @click="confirmCancel = true"
-          >Cancel Ticket</button>
-        </div>
+        <button
+          class="w-full inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-all duration-150 px-4 py-2.5 text-sm bg-transparent text-foreground hover:bg-muted active:bg-border border border-border"
+          @click="leaveQueue"
+        >Leave Queue</button>
 
         <button
-          v-else
-          class="w-full inline-flex items-center justify-center gap-2 font-semibold rounded-none transition-all duration-150 bg-primary text-white hover:bg-primary-hover px-4 py-2.5 text-sm"
-          @click="startOver"
-        >Join Queue Again</button>
+          :disabled="cancelling"
+          class="w-full inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-all duration-150 px-4 py-2.5 text-sm bg-danger/10 text-danger hover:bg-danger/20 disabled:opacity-50"
+          @click="handleCancel"
+        >{{ cancelling ? 'Cancelling…' : 'Cancel Ticket' }}</button>
+      </div>
+
+      <button
+        v-else
+        class="w-full inline-flex items-center justify-center gap-2 font-semibold rounded-md transition-all duration-150 bg-primary text-white hover:bg-primary-hover px-4 py-2.5 text-sm"
+        @click="startOver"
+      >Join Queue Again</button>
       </div>
     </template>
   </div>
