@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { MessageSquare, Phone, Bell, Loader2, ArrowLeft, User, ListOrdered, Clock3, SkipForward } from 'lucide-vue-next'
+import { MessageSquare, Phone, Bell, Loader2, ArrowLeft, User, ListOrdered, Clock3, XCircle, SkipForward } from 'lucide-vue-next'
 import { formatTime, formatDate, formatDateTime, channelLabel } from '~/utils/format'
 
 defineEmits<{ back: [] }>()
 
-const { overview, sessionTickets, startService, completeService, skipTicket } = useStaffSession()
+const { overview, sessionTickets, recallTicket, completeService, noShowTicket, skipTicket } = useStaffSession()
 const showToast = inject<(msg: string) => void>('showToast', () => {})
 const selectedTicketId = inject<Ref<string | null>>('selectedTicketId', ref(null))
 
@@ -42,9 +42,10 @@ const run = async (fn: (id: string) => Promise<any>, message: (t: any) => string
   }
 }
 
-const handleStart = () => run(startService, (t) => `Service started for ${t.ticketNumber}`)
+const handleRecall = () => run(recallTicket, (t) => `${t.ticketNumber} re-notified`)
 const handleComplete = () => run(completeService, (t) => `${t.ticketNumber} completed`)
-const handleSkip = () => run(skipTicket, (t) => `${t.ticketNumber} skipped`)
+const handleNoShow = () => run(noShowTicket, (t) => `${t.ticketNumber} marked as no-show`)
+const handleSkip = () => run(skipTicket, (t) => `${t.ticketNumber} skipped to back of queue`)
 
 const timeline = computed(() => {
   if (!ticket.value) return []
@@ -54,6 +55,7 @@ const timeline = computed(() => {
     { label: 'Service started', time: ticket.value.servicedAt, key: 'servicedAt' },
     { label: 'Skipped', time: ticket.value.skippedAt, key: 'skippedAt' },
     { label: 'Completed', time: ticket.value.completedAt, key: 'completedAt' },
+    { label: 'Cancelled / No Show', time: ticket.value.cancelledAt, key: 'cancelledAt' },
   ].filter((e) => e.time)
 })
 </script>
@@ -180,23 +182,46 @@ const timeline = computed(() => {
       <div class="card p-5">
         <h3 class="mb-4 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Actions</h3>
 
-        <template v-if="ticket.status === 'CALLED'">
+        <template v-if="['CALLED', 'IN_SERVICE'].includes(ticket.status)">
           <div class="flex gap-3">
-            <button :disabled="acting" class="btn btn-md btn-primary flex-1" @click="handleStart">
+            <button
+              :disabled="acting"
+              class="btn btn-md btn-outline flex-1"
+              @click="handleRecall"
+            >
               <Loader2 v-if="acting" class="h-4 w-4 animate-spin" />
-              Start Service
+              <Bell v-else class="h-4 w-4" />
+              Recall
             </button>
-            <button :disabled="acting" class="btn btn-md btn-outline" @click="handleSkip">Skip</button>
-          </div>
-        </template>
-
-        <template v-else-if="ticket.status === 'IN_SERVICE'">
-          <div class="flex gap-3">
-            <button :disabled="acting" class="btn btn-md btn-primary flex-1" @click="handleComplete">
+            <button
+              v-if="ticket.status === 'IN_SERVICE'"
+              :disabled="acting"
+              class="btn btn-md btn-primary flex-1"
+              @click="handleComplete"
+            >
               <Loader2 v-if="acting" class="h-4 w-4 animate-spin" />
-              Complete Service
+              Complete
             </button>
-            <button :disabled="acting" class="btn btn-md btn-ghost-danger" @click="handleSkip">Skip</button>
+            <button
+              v-if="ticket.status === 'CALLED'"
+              :disabled="acting"
+              class="btn btn-md btn-ghost-danger"
+              @click="handleNoShow"
+            >
+              <Loader2 v-if="acting" class="h-4 w-4 animate-spin" />
+              <XCircle v-else class="h-4 w-4" />
+              No Show
+            </button>
+            <button
+              v-if="ticket.status === 'CALLED'"
+              :disabled="acting"
+              class="btn btn-md btn-outline"
+              @click="handleSkip"
+            >
+              <Loader2 v-if="acting" class="h-4 w-4 animate-spin" />
+              <SkipForward v-else class="h-4 w-4" />
+              Skip
+            </button>
           </div>
         </template>
 

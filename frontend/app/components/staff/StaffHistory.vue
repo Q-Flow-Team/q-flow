@@ -2,7 +2,7 @@
 import { ChevronLeft, ChevronRight, Inbox } from 'lucide-vue-next'
 import { formatTime, formatDate } from '~/utils/format'
 
-const { history, historyLoading, fetchHistory } = useStaffSession()
+const { history } = useStaffSession()
 const filter = ref('')
 const page = ref(1)
 const PER = 8
@@ -19,8 +19,6 @@ const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / 
 const paginated = computed(() => filtered.value.slice((page.value - 1) * PER, page.value * PER))
 
 watch(filter, () => (page.value = 1))
-
-onMounted(() => fetchHistory())
 </script>
 
 <template>
@@ -29,7 +27,7 @@ onMounted(() => fetchHistory())
       <div>
         <h2 class="text-xl font-extrabold tracking-tight text-foreground">History</h2>
         <p class="mt-0.5 text-sm text-muted-foreground">
-          <span class="font-bold text-foreground tabular-nums">{{ filtered.length }}</span> tickets handled
+          <span class="font-bold text-foreground tabular-nums">{{ filtered.length }}</span> tickets handled this session
         </p>
       </div>
       <div class="flex items-center gap-2">
@@ -44,8 +42,7 @@ onMounted(() => fetchHistory())
     </div>
 
     <div class="card overflow-hidden">
-      <SkeletonTable v-if="historyLoading" :rows="8" :cols="6" />
-      <div v-else class="overflow-x-auto">
+      <div class="overflow-x-auto">
         <table class="table-gmail w-full text-sm">
           <thead class="bg-muted/40">
             <tr class="border-b border-border">
@@ -65,7 +62,7 @@ onMounted(() => fetchHistory())
                 </span>
                 <p class="text-sm font-semibold text-foreground">No completed tickets yet</p>
                 <p class="mt-1 text-xs text-muted-foreground">
-                  Tickets you serve, skip, or cancel will appear here.
+                  Tickets you mark as no-show or cancel this session will appear here.
                 </p>
               </td>
             </tr>
@@ -80,7 +77,7 @@ onMounted(() => fetchHistory())
           </tbody>
         </table>
       </div>
-      <div v-if="!historyLoading && totalPages > 1" class="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3.5">
+      <div v-if="totalPages > 1" class="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3.5">
         <p class="text-xs text-muted-foreground">
           Showing {{ (page - 1) * PER + 1 }}–{{ Math.min(page * PER, filtered.length) }} of {{ filtered.length }}
         </p>
@@ -100,7 +97,7 @@ onMounted(() => fetchHistory())
             :aria-current="page === p ? 'page' : undefined"
             :class="[
               'grid h-8 w-8 place-items-center text-xs font-bold transition-colors',
-              page === p ? 'bg-gray-900 text-white' : 'text-muted-foreground hover:bg-muted',
+              page === p ? 'text-foreground' : 'text-muted-foreground hover:bg-muted',
             ]"
           >
             {{ p }}
